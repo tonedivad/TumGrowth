@@ -16,8 +16,7 @@ Open RStudio and run these lines in the console to install a few packages:
  - library(devtools)
  - install_github('ramnathv/rCharts')
 
-Run the tool:
- - library(shiny)
- - runGitHub("TumGrowth", "tonedivad")
+Open RStudio and run this line:
+ - shiny:::runGitHub("TumGrowth", "tonedivad")
 
 Your web browser will open the web app.
