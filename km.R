@@ -101,8 +101,8 @@ compKM<-function(objres,ref,firth=FALSE){
                    sprintf("log-rank: %.2f, p<%s",x$sctest["test"],myf(x$sctest["pvalue"])))
       colnames(modtab)="Test"
       hrs=apply(x$coefficients,1,function(x) sprintf("%.2f [%.2f;%.2f]",exp(x[1]),exp(x[1]-1.96*x[2]),exp(x[1]+1.96*x[2])))
-      hrpva=sprintf('<%s',myf(p.adjust(x$coefficients[,5],"holm")))
-      hrpv=sprintf('<%s',myf(x$coefficients[,5]))
+      hrpva=sprintf('%s',myf(p.adjust(x$coefficients[,5],"holm")))
+      hrpv=sprintf('%s',myf(x$coefficients[,5]))
     }
     ####################
     if(firth){
@@ -110,14 +110,14 @@ compKM<-function(objres,ref,firth=FALSE){
       modtab=.infctKM(mod)
       colnames(modtab)="Test"
       hrs=apply(cbind(mod$coefficients,mod$ci.lower,mod$ci.upper),1,function(x) sprintf("%.2f [%.2f;%.2f]",exp(x[1]),exp(x[1]-1.96*x[2]),exp(x[1]+1.96*x[2])))
-      hrpva=sprintf('<%s',myf(p.adjust(mod$prob,"holm")))
-      hrpv=sprintf('<%s',myf(mod$prob))
+      hrpva=sprintf('%s',myf(p.adjust(mod$prob,"holm")))
+      hrpv=sprintf('%s',myf(mod$prob))
     }
     ####################
     lrs=sapply(levels(ndf$grp)[-1],function(x) 
       summary(coxph(Surv(Time,Event)~factor(grp),ndf[ndf$grp%in%c(ref,x),]))$sctest["pvalue"])
-    lrsa=sprintf('<%s',myf(p.adjust(lrs,"holm")))
-    lrs=sprintf('<%s',myf(lrs))
+    lrsa=sprintf('%s',myf(p.adjust(lrs,"holm")))
+    lrs=sprintf('%s',myf(lrs))
     hrtab=cbind(Covariate=levels(ndf$grp)[-1],'Hazard ratio'=hrs,"HR Pval"=hrpv,"HR PvalAdj"=hrpva,"LR Pval"=lrs,"LR PvalAdj"=lrsa)
     rownames(hrtab)=NULL
     ####################
