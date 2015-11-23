@@ -34,7 +34,7 @@ downloadFile<-function(df){
 }
 
 #############################################################################################
-loadFile<-function(ifile){
+loadFile<-function(ifile,imputezer=TRUE,trim=TRUE){
   tmp=strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw")),"\t")
   
   whichtps=grep("^[0-9]+$",tmp[[1]])
@@ -78,14 +78,34 @@ loadFile<-function(ifile){
   ltps=as.numeric(tmp[[1]][whichtps])
   
   
-  allmeas=lapply(unique(lmeas),function(imeas){
+  allmeas=list()
+  for(imeas in unique(lmeas)){
     l=which(lmeas==imeas)
-    df=data.frame(X=as.vector(mat[,l]),Id=rep(uids,length(l)),
+    df=data.frame(X=round(as.vector(mat[,l]),4),Id=rep(uids,length(l)),
                   tp=rep(ltps[l],each=nrow(mat)),stringsAsFactors = F)
     rownames(df)=paste(df$tp,df$Id,sep=";;")
+    
+    if(trim){
+    l2rm=NULL
+    for(ipid in unique(df$Id)){
+      idf=df[df$Id==ipid,]
+      idf=idf[order(-idf$tp),]
+      
+      l2excl=which(diff(idf[,1])==0 & idf[-nrow(idf),1]!=0)
+      if(length(l2excl)>0) l2excl=l2excl[l2excl==(1:length(l2excl))]
+      if(length(l2excl)>0) l2rm=c(l2rm,rownames(idf)[l2excl])
+    }
+    if(length(l2rm)>0){
+      cat("Excl in",imeas,":",l2rm,"\n",sep=" ")
+      df[l2rm,1]=NA
+    }
+  }
+    
     names(df)[1]=imeas
-    df
-  })
+    allmeas[[imeas]]=df
+  }
+  
+
   umeas=unique(unlist(lapply(allmeas,rownames)))
   
   df=data.frame(sapply(allmeas,function(x) x[match(umeas,rownames(x)),1]),stringsAsFactors = F)
@@ -94,8 +114,10 @@ loadFile<-function(ifile){
   df=df[rowSums(is.na(df[,unique(lmeas),drop=F]))<length(unique(lmeas)),,drop=F]
   df=df[which(!apply(is.na(df),1,all)),,drop=F]
   for(i in unique(lmeas)){
-    v=log(df[,i]);v[is.infinite(v)]=NA
-    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.3))  df[,paste(i,"log",sep=".")]=v
+    v=log(df[,i])
+    if(!imputezer) v[is.infinite(v)]=NA
+    if(imputezer) v[is.infinite(v)]=log(min(df[df[,i]>0,i],na.rm=T)/2)
+    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.23))  df[,paste(i,"log",sep=".")]=v
   }
   lResp=names(df)
   

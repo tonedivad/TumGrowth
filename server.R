@@ -30,7 +30,7 @@ shinyServer(function(input, output, session) {
    ifile=fileData()
    cat("Lets load the data",ifile,"\n")
     shiny:::flushReact()
-    datM=isolate(loadFile(ifile))
+    datM=loadFile(ifile,imputezer=input$imputezer,trim=input$trim)
   #  print(str(datM))
     datM
   })
@@ -235,13 +235,13 @@ shinyServer(function(input, output, session) {
    tab=table(datM$grp[datM$Use],datM$tp[datM$Use])
    return(tab)
  })
- 
- output$filetableori <- renderDataTable({
-   datM=dat()
-    top=do.call('rbind',downloadFile(datM))
-     top=top[,-grep('\\.log',top[2,]),drop=F]
-     return(data.frame(top,stringsAsFactors = F))
- },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
+#  
+#  output$filetableori <- renderDataTable({
+#     top=loadFile(fileData(),imputezer = FALSE,trim = FALSE)$data
+#     top=top[,-grep('\\.log',top[2,]),drop=FALSE]
+#      print(top)
+#      return(data.frame(top,stringsAsFactors = FALSE))
+#  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
 
  output$filetableshort <- renderDataTable({
    if(is.null(input$responsedat)) return(NULL)

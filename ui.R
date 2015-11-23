@@ -58,8 +58,11 @@ shinyUI(
                                                      list("Longitudinal test"="Test1","Kaplan-Meier test"="Test2","Cross-sectional test"="TestCRM"))
                        ),
                        conditionalPanel(condition="input.dataInput=='2'",
-                                        fileInput('browse', 'File to upload', multiple = FALSE)
+                                        fileInput('browse', 'File to upload', multiple = FALSE),
+                                        radioButtons("loadtyp", NULL,list("Long"="long","Wide"="wide"),inline=TRUE)
                        ),
+                       checkboxInput("imputezer", label = 'Replace zeros', value = TRUE),
+                       checkboxInput("trim", label = 'Trim last values', value = TRUE),
                        div(align = "center", downloadButton("exporttxtDS", "Results"))
       ),
       #################
@@ -157,11 +160,11 @@ shinyUI(
         tabPanel("Data upload",
                  bsCollapse(id = "collapseDS", open = "Experimental design",
                             bsCollapsePanel("Experimental design",  tableOutput("design"),style = "info"),
-                            bsCollapsePanel("Data in short format", 
+                            bsCollapsePanel("Data in wide format", 
                                             uiOutput("choicesdat"),
                                             dataTableOutput("filetableshort"),style = "info"),
-                            bsCollapsePanel("Data in long format", dataTableOutput("filetablelong"),style = "info"),
-                            bsCollapsePanel("Original data", dataTableOutput("filetableori"),style = "info")
+                            bsCollapsePanel("Data in long format", dataTableOutput("filetablelong"),style = "info")
+                            #bsCollapsePanel("Original data", dataTableOutput("filetableori"),style = "info")
                  ),
                  lastline()
         ),

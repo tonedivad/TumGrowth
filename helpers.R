@@ -74,12 +74,13 @@ plotTC3<-function(df,resp,lgrps,force2zero=FALSE,dogrps=TRUE,type='All',se=TRUE,
   
   df$Resp2=round(df[,resp],3)
   xlim=pretty(seq(ifelse(force2zero,0,min(df$tp)),max(df$tp),length=9))
+  
   miny=round(min(df$Resp2,na.rm=T),3)
   if(force2zero & all(df$tp>0)){
     miny=ifelse(grepl("\\.log",resp),min(df$Resp2,na.rm=T)-log(2),0)
     miny=ifelse(is.na(defzero),miny,round(defzero,3))
   }
-  if(any(is.na(df$Resp2)) & grepl('\\.log',resp)) df$Resp2[is.na(df$Resp2)]=round(min(df$Resp2,na.rm=T)-log(2),3)
+ # if(any(is.na(df$Resp2)) & grepl('\\.log',resp)) df$Resp2[is.na(df$Resp2)]=round(min(df$Resp2,na.rm=T)-log(2),3)
   
   df=df[!is.na(df$Resp2),]
 ylim=pretty(seq(0.95*miny,max(df$Resp2),length=8))

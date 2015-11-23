@@ -19,7 +19,7 @@ exportTC<-function(df,resp,lgrps,force2zero=FALSE,dogrps=TRUE,type='All',se=TRUE
     miny=ifelse(grepl("\\.log",resp),min(df$Resp,na.rm=T)-log(2),0)
     miny=ifelse(is.na(defzero),miny,round(defzero,3))
   }
-  if(any(is.na(df$Resp)) & grepl('\\.log',resp)) df$Resp[is.na(df$Resp)]=round(min(df$Resp,na.rm=T)-log(2),3)
+#  if(any(is.na(df$Resp)) & grepl('\\.log',resp)) df$Resp[is.na(df$Resp)]=round(min(df$Resp,na.rm=T)-log(2),3)
   
   ylim=pretty(seq(0.95*miny,max(df$Resp),length=8))
   #  print(ylims)
