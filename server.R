@@ -30,7 +30,7 @@ shinyServer(function(input, output, session) {
    ifile=fileData()
    cat("Lets load the data",ifile,"\n")
     shiny:::flushReact()
-    datM=loadFile(ifile,imputezer=input$imputezer,trim=input$trim)
+    datM=loadFile(ifile,imputezer=input$imputezer,trim=input$trim,exclzer=input$exclzer)
   #  print(str(datM))
     datM
   })

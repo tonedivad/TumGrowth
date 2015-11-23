@@ -34,7 +34,7 @@ downloadFile<-function(df){
 }
 
 #############################################################################################
-loadFile<-function(ifile,imputezer=TRUE,trim=TRUE){
+loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   tmp=strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw")),"\t")
   
   whichtps=grep("^[0-9]+$",tmp[[1]])
@@ -91,8 +91,10 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE){
       idf=df[df$Id==ipid,]
       idf=idf[order(-idf$tp),]
       
-      l2excl=which(diff(idf[,1])==0 & idf[-nrow(idf),1]!=0)
+      if(!exclzer) l2excl=which(diff(idf[,1])==0 & idf[-nrow(idf),1]>0)
+      if(exclzer) l2excl=which(diff(idf[,1])==0)
       if(length(l2excl)>0) l2excl=l2excl[l2excl==(1:length(l2excl))]
+      if(exclzer & any(idf[,1]==0,na.rm = TRUE)) l2excl=c(l2excl,which(idf[,1]<=0)) 
       if(length(l2excl)>0) l2rm=c(l2rm,rownames(idf)[l2excl])
     }
     if(length(l2rm)>0){

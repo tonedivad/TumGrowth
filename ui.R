@@ -61,8 +61,9 @@ shinyUI(
                                         fileInput('browse', 'File to upload', multiple = FALSE),
                                         radioButtons("loadtyp", NULL,list("Long"="long","Wide"="wide"),inline=TRUE)
                        ),
-                       checkboxInput("imputezer", label = 'Replace zeros', value = TRUE),
-                       checkboxInput("trim", label = 'Trim last values', value = TRUE),
+                       checkboxInput("exclzer", label = 'Exclude zeros', value = FALSE),
+                       checkboxInput("imputezer", label = 'Replace zeros for log trans.', value = TRUE),
+                       checkboxInput("trim", label = 'Trim same values at end', value = TRUE),
                        div(align = "center", downloadButton("exporttxtDS", "Results"))
       ),
       #################
