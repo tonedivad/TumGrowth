@@ -376,7 +376,14 @@ output$plottc3b<-renderChart({
   output$modelpw<-DT::renderDataTable({modelpw()$pw}, options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
   output$modelwei<-renderPrint(model()$weightCoef)
   output$modelcor<-renderPrint(model()$corrCoef)
-############################################################################
+  output$modelout<-renderPrint({
+    idat=model()$data
+    if(!any((idat$out))) return('No outliers')
+    idat=idat[idat$out,]
+    c("Outliers:\n",unname(tapply(1:nrow(idat),factor(idat$Id),function(x) paste(idat$Id[x[1]]," (",idat$grp[x[1]],"): ",paste(idat$tp[x],collapse=","),sep=""))))
+    })
+  
+  ############################################################################
 
 output$sumCS <- renderTable(data.frame(csect()$sumids),align="lll",include.rownames = F,include.colnames = T)
 output$ctCS<-DT::renderDataTable(data.frame(csect2()$ct), options = list(paging = F,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
@@ -391,13 +398,20 @@ output$modCS<-renderTable({
   data.frame(csect2()$mod)},
   align="ll",include.rownames = F,include.colnames = F)
 
+output$csout<-renderPrint({
+  idat=csect2()$df
+  if(!any((idat$out))) return('No outliers')
+  idat=idat[idat$out,]
+  c("Outliers:\n",
+    unname(tapply(1:nrow(idat),factor(idat$Id),function(x) paste(idat$Id[x[1]]," (",idat$grp[x[1]],"): ",paste(idat$tp[x],collapse=","),sep=""))))
+})
 
 output$downloadCS <- downloadHandler(
   filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-CS.',tolower(input$csplot),sep=""),
   content <- function(file) {
     if(input$csplot=='Svg'){
-      require(RSVGTipsDevice)
-      devSVGTips(file, width =input$cswidth, height =input$csheight,toolTipMode = 0)
+      require(svglite)
+      svglite(file, width =as.numeric(input$cswidth), height =as.numeric(input$csheight))
     }
     if(input$csplot=='Png')
       png(file, width =as.numeric(input$cswidth)*96, height =as.numeric(input$csheight)*96)
@@ -414,8 +428,8 @@ output$downloadKM <- downloadHandler(
   filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-KM.',tolower(input$kmfplot),sep=""),
   content <- function(file) {
     if(input$kmfplot=='Svg'){
-      require(RSVGTipsDevice)
-      devSVGTips(file, width =input$kmwidth, height =input$kmheight,toolTipMode = 0)
+      require(svglite)
+      svglite(file, width =as.numeric(input$kmwidth), height =as.numeric(input$kmheight))
     }
     if(input$kmfplot=='Png')
       png(file, width =as.numeric(input$kmwidth)*96, height =as.numeric(input$kmheight)*96)
@@ -431,19 +445,19 @@ output$downloadTC <- downloadHandler(
   filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-TC.',tolower(input$tcfplot),sep=""),
   content <- function(file) {
     if(input$tcfplot=='Svg'){
-      require(RSVGTipsDevice)
-      devSVGTips(file, width =input$tcwidth, height =input$tcheight,toolTipMode = 0)
+      require(svglite)
+      svglite(file, width =as.numeric(input$tcwidth), height =as.numeric(input$tcheight),standalone = TRUE)
     }
     if(input$tcfplot=='Png')
       png(file, width =as.numeric(input$tcwidth)*96, height =as.numeric(input$tcheight)*96)
+    
     par(mar=c(3.4,4,1,.1),lwd=2,lend=0,cex=input$tccex,cex.axis=input$tccex,cex.lab=input$tccex)
     exportTC(dat()$data,resp = input$response,lgrps = input$vars,
              force2zero=input$forcezero,dogrps=(input$tcfplot=='Svg'),
              type=input$tcfplottyp,se=input$tcse=='SE',defzero=as.numeric(input$tcdef))
     dev.off()
     if(input$tcfplot=='Svg') trans(file)
-  },
-  contentType = ifelse(input$tcfplot=='Svg','image/svg','image/png')
+  },  contentType = ifelse(input$tcfplot=='Svg','image/svg','image/png')
 )
 ############################################################################
 

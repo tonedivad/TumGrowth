@@ -38,7 +38,7 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   tmp=strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw")),"\t")
   
   whichtps=grep("^[0-9]+$",tmp[[1]])
-  whichgrp=which(tmp[[1]]=="Grp")
+  whichgrp=grep("^[group]+$",tolower(tmp[[1]]))[1]
   whichid=grep("^[MIDmid]+$",tmp[[1]])
   if(length(whichid)>1) whichid=whichid[1]
   whichuse=grep("^[USEuse]{3}$",tmp[[1]])

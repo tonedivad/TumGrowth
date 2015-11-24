@@ -3,10 +3,10 @@ trans<-function(inam){
   for(k in grep(">Gst</text",doc)) doc[[k]]="<g>"
   for(k in grep(">Gend</text",doc)) doc[[k]]="</g>"
 
-lline=grep("<line x1",doc)
-lline=lline[!lline%in%c(grep("dasharray",doc),grep("linecap",doc))]
-for(i in lline) 
-      doc[[i]]=paste(gsub("/>","",doc[[i]]),' style=\"stroke-linecap:round\"/>',sep="")
+# lline=grep("<line x1",doc)
+# lline=lline[!lline%in%c(grep("dasharray",doc),grep("linecap",doc))]
+# for(i in lline) 
+#       doc[[i]]=paste(gsub("/>","",doc[[i]]),' style=\"stroke-linecap:round\"/>',sep="")
 write(doc,file=inam,sep="\n")
 }
 
@@ -45,12 +45,12 @@ ylim=range(ylim)
   par(xpd=F)
   re=plot(range(xtk),range(ytk),pch=16,cex=0,axes=F,ylim=range(ytk),xlim=range(xtk),xlab="Time (d)",ylab=resp)
   
+  if(dogrps)  text(mean(xtk)*.99,mean(ytk[-1])*.98,"Gst")
   axis(1,at=xtk,pos=ytk[1]-range(ytk)*.02,lwd=2,tick=F)
-if(dogrps)  text(mean(xtk)*.99,mean(ytk[-1])*.98,"Gst")
   axis(1,at=xtk,pos=ytk[1]-range(ytk)*.02,lwd=2,labels = rep("",length(xtk)))
 if(dogrps)    text(mean(xtk)*.99,mean(ytk[-1])*.98,"Gend")
+  if(dogrps)    text(mean(xtk)*.9,mean(ytk[-1])*.8,"Gst")
   axis(2,at=ytk,pos=xtk[1],las=2,lwd=2,tick=F)
-if(dogrps)    text(mean(xtk)*.9,mean(ytk[-1])*.8,"Gst")
   axis(2,at=ytk,pos=xtk[1],lwd=2,labels = rep("",length(ytk)))
 if(dogrps)    text(mean(xtk)*.92,mean(ytk[-1])*.92,"Gend")
   
@@ -112,17 +112,20 @@ exportCS<-function(cset,dogrps=TRUE,cexpt=1.2){
     points(ire[,1],ire[,2],cex=cexpt,pch=ire$pch,col=ire$col)
     if(dogrps)    text(mean(ire[,1]),mean(ire[,2]),"Gend")
   }
+  if(dogrps)   text(nlevels(idf$grp)*.52,mean(ylim[-1])*.8,"Gst")
   for(i in 1:nlevels(idf$grp)) axis(1,at=i,labels = paste(re$names,"\n(",re$n,")",sep="")[i],
                                     tick=FALSE,pos=ylim[1])
-  axis(2,at=ylim,pos=xlim[1],las=2,lwd=2,tick=F)
+  if(dogrps)   text(nlevels(idf$grp)*.52,mean(ylim[-1])*.92,"Gend")
+
   if(dogrps)   text(nlevels(idf$grp)*.49,mean(ylim[-1])*.8,"Gst")
+  axis(2,at=ylim,pos=xlim[1],las=2,lwd=2,tick=F)
   axis(2,at=ylim,pos=xlim[1],lwd=2,labels = rep("",length(ylim)))
   if(dogrps)   text(nlevels(idf$grp)*.42,mean(ylim[-1])*.92,"Gend")
    
 }
 
 ##################################################################################################
-exportKM<-function(kmeir,dinc=0.1,lwd=2,cexpt=2){
+exportKM<-function(kmeir,dinc=0.1,lwd=2,cexpt=2,dogrps=TRUE){
   
   ndf=kmeir$df
   akms=kmeir$akms
@@ -136,12 +139,23 @@ exportKM<-function(kmeir,dinc=0.1,lwd=2,cexpt=2){
   if(!is.na(cexpt) & cexpt>0)
     for(i in names(akms)){
       tmp=akms[[i]];tmp=tmp[tmp[,'x0']>0 & !is.na(tmp[,'y']),]
-      print(tmp)
+      if(dogrps)   text(mean(tmp[,'x'])*.48,mean(tmp[,'y']/100)*.8,"Gst")
       points(tmp[,'x'],tmp[,'y']/100,col=tmp[,'color'],pch=16,cex=cexpt)
+      if(dogrps)   text(mean(tmp[,'x'])*.48,mean(tmp[,'y']/100)*.8,"Gend")
     }
+  if(dogrps)   text(mean(xaxt)*.48,.8,"Gst")
   axis(1,at=ticks,lab=rep("",length(ticks)),pos=0,col.ticks="grey",lwd.ticks=par('lwd')*1.5,lwd=0)
+  if(dogrps)   text(mean(xaxt)*.52,.7,"Gend")
+  if(dogrps)   text(mean(xaxt)*.48,.48,"Gst")
   axis(1,at=xaxt,pos=0)
+  if(dogrps)   text(mean(xaxt)*.52,.47,"Gend")
+  
+  if(dogrps)   text(mean(xaxt)*.45,.8,"Gst")
   axis(2,at=seq(0,1,.2),lab=seq(0,1,.2)*100,las=2,pos=0)
+  if(dogrps)   text(mean(xaxt)*.4,.8,"Gend")
+  if(dogrps)   text(mean(xaxt)*.42,.58,"Gst")
   legend('topright',paste(levels(ndf$grp)," (",table(ndf$grp[ndf$Event]),"/",table(ndf$grp),")",sep=""),xjust=0,
          ncol=1,bty="n",col=cols,lwd =lwd*1.5,seg.len =1)
+  if(dogrps)   text(mean(xaxt)*.42,.38,"Gend")
+  
 }

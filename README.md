@@ -13,10 +13,10 @@ Before running the app you will need to have 1) R and 2) RStudio installed:
 and have a few packages installed. For doing so, open RStudio and run these lines in the console:
  - install.packages(c("shiny","shinyFiles","shinythemes","shinyBS","devtools"))
  - install.packages(c("car","coxphf","nlme","multcomp","survival","doBy"))
- - install.packages(c("beeswarm","xtable","RSVGTipsDevice","RColorBrewer"))
- - library(devtools)
- - install_github('ramnathv/rCharts')
- - install_github('rstudio/DT')
+ - install.packages(c("beeswarm","xtable","RColorBrewer"))
+ - devtools::install_github("hadley/svglite") ## necessary for exporting SVGs
+ - devtools::install_github('ramnathv/rCharts')
+ - devtools::install_github('rstudio/DT')
 
 usage
 ------------

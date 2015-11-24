@@ -103,11 +103,11 @@ shinyUI(
                            textInput3(inputId="kmshift", label="Shifting factor", value = 0.1, class="input-small")),    
                        br(),
                        div(align = "center", h4("Image export"),
-                       textInput3(inputId="kmwidth", label="Width", value = 4.5, class="input-small"),
-                       textInput3(inputId="kmheight", label="Height", value = 3.2, class="input-small"),
+                       textInput3(inputId="kmwidth", label="Width", value = 5, class="input-small"),
+                       textInput3(inputId="kmheight", label="Height", value = 4, class="input-small"),
                        textInput3(inputId="kmcex", label="Cex", value = 1, class="input-small"),
-                       textInput3(inputId="kmcexpt", label="CexPt", value = 1.5, class="input-small"),
-                       textInput3(inputId="kmlwd", label="Lwd", value = 2, class="input-small"),
+                       textInput3(inputId="kmcexpt", label="CexPt", value = 1.2, class="input-small"),
+                       textInput3(inputId="kmlwd", label="Lwd", value = 1.5, class="input-small"),
                        tags$head(tags$style(type="text/css", "#kmwidth {width: 35px}")),
                        tags$head(tags$style(type="text/css", "#kmheight {width: 35px}")),
                        tags$head(tags$style(type="text/css", "#kmshift {width: 35px}")),
@@ -188,7 +188,7 @@ shinyUI(
                  lastline()
         ),
         tabPanel("Survival",
-                 bsCollapse(id = "collapseKM", open = "Kaplan meier",
+                 bsCollapse(id = "collapseKM", open = "Kaplan Meier",
                             bsCollapsePanel("Kaplan meier", showOutput("plotkm", "highcharts"),style = "info"),
                             bsCollapsePanel("Cox regression",
                                             uiOutput("radiokm"),
@@ -214,7 +214,7 @@ shinyUI(
                                             showOutput("plottc4", "highcharts"), style = "info"),
                             bsCollapsePanel("Model information",tableOutput("modelsum"),
                                             verbatimTextOutput("modelcor"),
-                                            verbatimTextOutput("modelwei"), style = "info")
+                                            verbatimTextOutput("modelwei"), verbatimTextOutput("modelout"), style = "info")
                  ),
                  lastline()
         ),
@@ -223,7 +223,7 @@ shinyUI(
                             bsCollapsePanel("Distribution", showOutput("plotcs", "highcharts"),style = "info"),
                             bsCollapsePanel("Pairwise comparisons",uiOutput("grpcsvar"),
                                             DT::dataTableOutput("ctCS"), style = "info"),
-                            bsCollapsePanel("ANOVA",tableOutput("modCS"), style = "info"),
+                            bsCollapsePanel("ANOVA",tableOutput("modCS"), verbatimTextOutput("csout"), style = "info"),
                             bsCollapsePanel("Time point selection",tableOutput("sumCS"),
                                             h6('Time of sampling is specified for each animals if different in the specified time range.'),
                                             style = "info")),
