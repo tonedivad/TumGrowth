@@ -167,8 +167,11 @@ shinyUI(
                             bsCollapsePanel("Experimental design",  tableOutput("design"),style = "info"),
                             bsCollapsePanel("Data in wide format", 
                                             uiOutput("choicesdat"),
+                                            uiOutput("groupsdat"),
                                             dataTableOutput("filetableshort"),style = "info"),
-                            bsCollapsePanel("Data in long format", dataTableOutput("filetablelong"),style = "info")
+                            bsCollapsePanel("Data in long format",
+                                            uiOutput("groupsdat2"),
+                                            dataTableOutput("filetablelong"),style = "info")
                             #bsCollapsePanel("Original data", dataTableOutput("filetableori"),style = "info")
                  ),
                  lastline()

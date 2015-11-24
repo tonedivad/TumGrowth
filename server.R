@@ -47,6 +47,19 @@ shinyServer(function(input, output, session) {
    radioButtons("responsedat",NULL, choices=nums2,selected=nums2[1],inline = T)
  })
  
+ output$groupsdat<-renderUI({
+   nums2<-mgrps()
+   list<-list()
+   for(i in nums2) list[[i]]<-i
+   checkboxGroupInput("groupsdat",NULL, choices=list,selected=list,inline = T)
+ })
+ output$groupsdat2<-renderUI({
+   nums2<-mgrps()
+   list<-list()
+   for(i in nums2) list[[i]]<-i
+   checkboxGroupInput("groupsdat2",NULL, choices=list,selected=list,inline = T)
+ })
+ 
  output$choices<-renderUI({
    nums2=mresp()
    radioButtons("response", 'Response', choices=nums2,selected=nums2[1],inline = T)
@@ -254,31 +267,37 @@ shinyServer(function(input, output, session) {
 #      return(data.frame(top,stringsAsFactors = FALSE))
 #  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
 
- output$filetableshort <- renderDataTable({
-   if(is.null(input$responsedat)) return(NULL)
-   if(!any(input$responsedat%in%mresp())) return(NULL)
+ output$filetableshort <- DT::renderDataTable({
+   if(is.null(input$responsedat) | is.null(input$groupsdat)) return(NULL)
+   if(!any(input$responsedat%in%mresp()) | !any(input$groupsdat%in%mgrps())) return(NULL)
    top=dat()$data
   top=top[,names(top)%in%c("Id","Use","grp","tp",input$responsedat )]
-   
+  top=top[top$grp%in%input$groupsdat,] 
    ltps=sort(unique(top$tp))
    add=do.call('rbind',tapply(1:nrow(top),top[,"Id"],function(x)
      round(top[x[match(ltps,top[x,'tp'])],input$responsedat],2)))
    colnames(add)=ltps
    tow=cbind(Use=tapply(as.character(top$Use),top$Id,unique),
-             Id=tapply(as.character(top$Id),top$Id,unique),
+             #Id=tapply(as.character(top$Id),top$Id,unique),
              Grp=tapply(as.character(top$grp),top$Id,unique),
-             #Use=tapply(top$Use,top$Id,unique),
              add)
-   rownames(tow)=NULL
-   tow=tow[order(factor(tow[,"Grp"],levels=levels(top$grp)),tow[,"Id"]),]
+   rownames(tow)=tapply(as.character(top$Id),top$Id,unique)
+   tow=tow[order(factor(tow[,"Grp"],levels=levels(top$grp))),]
    return(tow)
  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
  
-   output$filetablelong <- renderDataTable({
-     top=dat()$data
-       top=top[,!names(top)%in%c('colorI','colorG')]
+  output$filetablelong <-  DT::renderDataTable({
+    if(is.null(input$groupsdat2)) return(NULL)
+    if(!any(input$groupsdat2%in%mgrps())) return(NULL)
+    top=dat()$data
+    top=top[top$grp%in%input$groupsdat2,] 
+    
+     top=top[,!names(top)%in%c('colorI','colorG')]
+     top=cbind(top[,c("Use","Id","grp","tp")],top[,!names(top)%in%c("Id","Use","grp","tp")])
+     top=top[order(top$grp,top$tp,top$Id),]
+     rownames(top)=NULL
        return(top)
-  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
+  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
 
   ###########################################################
 output$plottc3a<-renderChart({
@@ -323,7 +342,7 @@ output$plottc3b<-renderChart({
     if(is.null(input$responsekm) |is.null(input$slidekm) |is.null(input$radiokm)) return(NULL)
     if(input$radiokm=='None') return(NULL)
     kmeier2()$hr},
-    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
+    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
   
 
   ###########################################################
@@ -337,13 +356,13 @@ output$plottc3b<-renderChart({
   })
   output$modelsum<-renderTable(model()$coef,align="lcccc")
   output$modeleffect<-renderTable(data.frame(model()$antab),align="ll")
-  output$modelpw<-renderDataTable({modelpw()$pw}, options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
+  output$modelpw<-renderDataTable({modelpw()$pw}, options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
   output$modelwei<-renderPrint(model()$weightCoef)
   output$modelcor<-renderPrint(model()$corrCoef)
 ############################################################################
 
 output$sumCS <- renderTable(data.frame(csect()$sumids),align="lll",include.rownames = F,include.colnames = T)
-output$ctCS<-renderDataTable(data.frame(csect2()$ct), options = list(paging = F,searching = FALSE,autoWidth = TRUE))
+output$ctCS<-renderDataTable(data.frame(csect2()$ct), options = list(paging = F,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
 output$plotcs<-renderChart({
   if(is.null(input$responsecs)) return(NULL)
   p1=csect()$plot

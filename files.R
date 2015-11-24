@@ -116,10 +116,10 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   df=df[rowSums(is.na(df[,unique(lmeas),drop=F]))<length(unique(lmeas)),,drop=F]
   df=df[which(!apply(is.na(df),1,all)),,drop=F]
   for(i in unique(lmeas)){
-    v=log(df[,i])
+    v=round(log(df[,i]),4)
     if(!imputezer) v[is.infinite(v)]=NA
     if(imputezer) v[is.infinite(v)]=log(min(df[df[,i]>0,i],na.rm=T)/2)
-    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.23))  df[,paste(i,"log",sep=".")]=v
+    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.2))  df[,paste(i,"log",sep=".")]=v
   }
   lResp=names(df)
   
