@@ -210,7 +210,7 @@ shinyUI(
                                             DT::dataTableOutput("modelpw"), style = "info"),
                             bsCollapsePanel("Diagnostics plots",
                                             radioButtons("radiodiag", label = NULL,inline = T,
-                                                         choices = c('QQ-plot','Resid/Mice','Resid/Fit'), selected = 'QQ-plot'),
+                                                         choices = c('QQ-plot','Fit','Resid/Mice','Resid/Fit'), selected = 'QQ-plot'),
                                             showOutput("plottc4", "highcharts"), style = "info"),
                             bsCollapsePanel("Model information",tableOutput("modelsum"),
                                             verbatimTextOutput("modelcor"),

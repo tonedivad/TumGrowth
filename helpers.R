@@ -10,6 +10,7 @@ library(coxphf)
 library(beeswarm)
 library(rCharts)
 library(DT)
+library(AICcmodavg)
 
 
 .myf<-function(pvs){
@@ -18,6 +19,9 @@ library(DT)
   return(sprintf("%.4f",pvs))  
 }
 myf<-function(pvs) sapply(pvs,.myf)
+
+add.alpha=function (hex.color.list, alpha) 
+  sprintf("%s%02X", hex.color.list, floor(alpha * 256))
 
 myfpv<-function(pvs){
   pvt="*"
@@ -40,7 +44,7 @@ anof<-function(x) sprintf("%.2f, p<%s%s",x[2,8],myf(x[2,9]),myfpv(x[2,9]))
 
 
 ############################################################################################
-getCols<-function(grp,mid=NULL){
+getCols<-function(grp,mid=NULL,what=4){
   pals=list(rev(brewer.pal(9,"Greens")[c(4,7)]),
             rev(brewer.pal(9,"Blues")[c(5,8)]),
             rev(brewer.pal(9,"Reds")[c(4,8)]),
@@ -50,7 +54,7 @@ getCols<-function(grp,mid=NULL){
             brewer.pal(11,"BrBG")[c(3,2)],
             brewer.pal(11,"BrBG")[c(10,9)])
   pals=c(pals,pals)
-  pals0=sapply(pals,function(x) colorRampPalette(x)(3)[2])
+  pals0=sapply(pals,function(x) rev(colorRampPalette(x)(7))[what])
   lugrp=unique(grp)
   if(is.null(mid)){
     lcols=pals0[1:length(lugrp)]

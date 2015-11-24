@@ -68,7 +68,11 @@ compMod<-function(data,grps,resp,bfco=0.1,checkvar=TRUE){
     #weightCoef=round(weightCoef,3)
   }
   
-  list(model=ga,coef=tab,antab=antab,weightCoef=weightCoef,corrCoef=corrCoef,data=idf)
+  newdf=expand.grid(tp=min(idf$tp):max(idf$tp),grp=levels(idf$grp))
+  newdf=cbind(newdf,data.frame(predictSE(ga,newdf)))
+  newdf$color=tapply(idf$colorG,idf$grp,unique)[newdf$grp]
+  
+  list(model=ga,coef=tab,antab=antab,weightCoef=weightCoef,corrCoef=corrCoef,data=idf,pred=newdf,Resp=resp)
 }
 
 ########################
@@ -112,7 +116,7 @@ compMod2<-function(objres,ref){
   for(i in 1:nrow(jtabtop)) exptxt=c(exptxt,list(jtabtop[i,]))
 #  print(exptxt)
   list(model=objres$model,coef=objres$tab,pw=jtabtop,antab=objres$antab,weightCoef=objres$weightCoef,
-       corrCoef=objres$corrCoef,data=objres$data,exptxt=exptxt)
+       corrCoef=objres$corrCoef,data=objres$data,exptxt=exptxt,Resp=objres$Resp)
 }
 
 
@@ -139,6 +143,39 @@ plotDiag<-function(mod,typplot="qqplot"){
   if(diff(flim)>10){flim=c(floor(min(fit*19.5)),ceiling(max(fit*20.5)))/20;dfim=5}
   if(diff(flim)>100){flim=c(floor(min(fit*195)),ceiling(max(fit*205)))/200;dfim=50}
   
+  
+  ## format qqplot
+  if(typplot=="Fit"){
+    idf=mod$data
+  idf=idf[!idf$out,]
+  resp=mod$Resp
+  if(grepl("\\.log$",resp))myf<-function(x) exp(x) else myf<-function(x) x
+  tmp=data.frame(x=idf$tp,y=round(myf(idf$Resp),2),color=idf$colorL,grp=idf$grp,Id=idf$Id)
+  
+  pred=mod$pred
+  pred$x=pred$tp
+  pred$y=round(myf(pred$fit),2)
+  pred$ymax=round(myf(pred$fit+1.96*pred$se.fit),2)
+  pred$ymin=round(myf(pred$fit-1.96*pred$se.fit),2)
+  ylim=pretty(seq(min(pred$ymin),max(pred$ymax),length.out = 7))
+  xlim=pretty(seq(min(tmp$x)*.9,max(tmp$x),length.out = 9))
+  
+  a <- rCharts::Highcharts$new()
+  for(i in unique(tmp$Id))
+    a$series(data = lapply(which(tmp$Id==i),function(j) as.list(tmp[j,])), name=i,type = "line",
+             color=tmp$color[which(tmp$Id==i)][1], showInLegend = FALSE, marker= list(enabled = FALSE))
+  for(i in unique(pred$grp)){
+    a$series(data = lapply(which(pred$grp==i),function(j) as.list(pred[j,c("x","y")])), name=i,type = "line",
+             fillOpacity = 0.3,lineWidth = 0,color=unname(pred$color[which(pred$grp==i)][1]),zIndex = 1)
+    a$series(data = lapply(which(pred$grp==i),function(j) 
+      unname(as.list(pred[j,c("x","ymin","ymax")]))),type = "arearange",# showInLegend = FALSE,
+      fillOpacity = 0.3,lineWidth = 0,color=unname(pred$color[which(pred$grp==i)][1]),zIndex = 0)
+  }
+  a$yAxis(title = list(text = "Response"), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
+  a$xAxis(title = list(text = "Time"), min =  min(xlim), max = max(xlim), tickInterval = diff(xlim)[1])
+  a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Treatment group"))
+  return(a)
+  }
   ## format qqplot
   if(typplot=="QQ-plot"){
     ab=c(max(xlim[1],ylim[1]),max(xlim[2],ylim[2]))

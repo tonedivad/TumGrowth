@@ -309,7 +309,7 @@ model<-eventReactive(input$goButton,{
     top=dat()$data
     top=top[top$grp%in%input$groupsdat2,] 
     
-     top=top[,!names(top)%in%c('colorI','colorG')]
+     top=top[,!names(top)%in%c('colorI','colorG','colorL')]
      top=cbind(top[,c("Use","Id","grp","tp")],top[,!names(top)%in%c("Id","Use","grp","tp")])
      top=top[order(top$grp,top$tp,top$Id),]
      rownames(top)=NULL

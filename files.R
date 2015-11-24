@@ -133,6 +133,7 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   
   df$colorI=getCols(df$grp,as.character(df$Id))[as.character(df$Id)]
   df$colorG=getCols(df$grp)[as.character(df$grp)]
+  df$colorL=getCols(df$grp,what=1)[as.character(df$grp)]
   rownames(df)=paste(df$Id,df$tp,sep='.')
   
   l2excl=unique(df$Id[!df$Use])

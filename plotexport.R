@@ -24,7 +24,7 @@ exportTC<-function(df,resp,lgrps,force2zero=FALSE,dogrps=TRUE,type='All',se=TRUE
   
   ylim=pretty(seq(0.95*miny,max(df$Resp),length=8))
   #  print(ylims)
-  idf=df[df$grp%in%lgrps & !is.na(df$Resp) & df$Use,c("tp","grp","Id","Resp","colorI","colorG")]
+  idf=df[df$grp%in%lgrps & !is.na(df$Resp) & df$Use,c("tp","grp","Id","Resp","colorI","colorG","colorL")]
   if(force2zero & all(df$tp>0)){
     aidf=idf[tapply(1:nrow(idf),idf$Id,function(x) x[1]),]
     aidf$tp=0
