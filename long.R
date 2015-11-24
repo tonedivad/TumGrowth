@@ -93,11 +93,11 @@ compMod2<-function(objres,ref){
   
   if(ref%in%levels(idf$grp)){
     idf$grp=relevel(idf$grp,ref)
-    ga=update(ga,data=idf)
+    gai=update(ga,data=idf[!idf$out,])
     ct=contrMat(table(idf$grp),type="Dunnet")[,-1,drop=F]
     jt1=cbind(0,0,ct,matrix(0,nrow=nrow(ct),ncol=ncol(ct)))
     jt2=cbind(0,0,matrix(0,nrow=nrow(ct),ncol=ncol(ct)),ct)
-    jtab=do.call("rbind",lapply(1:nrow(jt1),function(i) esticon(ga,rbind(jt1[i,],jt2[i,]),join=T)))
+    jtab=do.call("rbind",lapply(1:nrow(jt1),function(i) esticon(gai,rbind(jt1[i,],jt2[i,]),join=T)))
     jtabtop=cbind(Group=gsub(" - .*","",rownames(jt1)),
                   ChiSq=sprintf("%.2f",jtab[,1]),Pvalue=myf(jtab[,3]),AdjPvalue=myf(p.adjust(jtab[,3],"holm")))
   }
