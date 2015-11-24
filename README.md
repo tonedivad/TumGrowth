@@ -17,6 +17,7 @@ and have a few packages installed. For doing so, open RStudio and run these line
  - library(devtools)
  - install_github('ramnathv/rCharts')
  - install_github('rstudio/DT')
+
 usage
 ------------
 Open RStudio and run this line in the console:
