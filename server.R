@@ -355,7 +355,7 @@ output$plottc3b<-renderChart({
     if(input$radiokm=='None') return(NULL)
     data.frame(kmeier2()$mod)},
     align="ll",include.rownames = F,include.colnames = F)
-  output$hrKM<-renderDataTable({
+  output$hrKM<-DT::renderDataTable({
     if(is.null(input$responsekm) |is.null(input$slidekm) |is.null(input$radiokm)) return(NULL)
     if(input$radiokm=='None') return(NULL)
     kmeier2()$hr},
@@ -373,13 +373,13 @@ output$plottc3b<-renderChart({
   })
   output$modelsum<-renderTable(model()$coef,align="lcccc")
   output$modeleffect<-renderTable(data.frame(model()$antab),align="ll")
-  output$modelpw<-renderDataTable({modelpw()$pw}, options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
+  output$modelpw<-DT::renderDataTable({modelpw()$pw}, options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
   output$modelwei<-renderPrint(model()$weightCoef)
   output$modelcor<-renderPrint(model()$corrCoef)
 ############################################################################
 
 output$sumCS <- renderTable(data.frame(csect()$sumids),align="lll",include.rownames = F,include.colnames = T)
-output$ctCS<-renderDataTable(data.frame(csect2()$ct), options = list(paging = F,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
+output$ctCS<-DT::renderDataTable(data.frame(csect2()$ct), options = list(paging = F,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
 output$plotcs<-renderChart({
   if(is.null(input$responsecs)) return(NULL)
   p1=csect()$plot
@@ -428,7 +428,7 @@ output$downloadKM <- downloadHandler(
 )
 
 output$downloadTC <- downloadHandler(
-  filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-TC',tolower(input$tcfplot),sep=""),
+  filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-TC.',tolower(input$tcfplot),sep=""),
   content <- function(file) {
     if(input$tcfplot=='Svg'){
       require(RSVGTipsDevice)
