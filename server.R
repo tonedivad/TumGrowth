@@ -101,6 +101,8 @@ shinyServer(function(input, output, session) {
  output$slidekmui<-renderUI({
    if(is.null(input$responsekm)) return(NULL)
    df=dat()$data
+   df=df[df$Use,]
+   
    if(!input$responsekm%in%names(df)) return(NULL)
    resp=gsub("\\..*","",input$responsekm)
    f=2
@@ -114,6 +116,8 @@ shinyServer(function(input, output, session) {
  output$sliderkmtui<-renderUI({
    if(is.null(input$responsekm)) return(NULL)
    df=dat()$data
+   df=df[df$Use,]
+   
    if(!input$responsekm%in%names(df)) return(NULL)
    valt=sort(unique(df$tp))
    args       <- list(inputId="sliderkmt", label=NULL, ticks=valt, value=length(valt)-1)
@@ -131,6 +135,8 @@ shinyServer(function(input, output, session) {
  output$slidecsui<-renderUI({
   # if(is.null(input$responsecs)) return(NULL)
    df=dat()$data
+   df=df[df$Use,]
+   
    valt=sort(unique(df$tp))
    valt0=range(tapply(df$tp,df$Id,max,na.rm=T))
    print(valt0)
@@ -168,6 +174,8 @@ shinyServer(function(input, output, session) {
    if(is.null(input$responselg) | is.null(input$varslg)) return(NULL)
    if(any(!input$responselg%in%mresp()) | any(!input$varslg%in%mgrps() )) return(NULL)
    data<-dat()$data
+   data=data[data$Use,]
+   
    cat("Comp model",input$varslg,'\n')
    bfco=input$bfco
    if(bfco=='None') bfco=0 else bfco=as.numeric(gsub('p<','',bfco))
@@ -190,6 +198,7 @@ shinyServer(function(input, output, session) {
    if(any(!input$responsekm%in%mresp()) | any(!input$varskm%in%mgrps() )) return(NULL)
    
    df=dat()$data
+   df=df[df$Use,]
    cat("Comp KM",input$varskm,'\n')
    ltps=sort(unique(df$tp))
    print(ltps)
@@ -212,6 +221,7 @@ shinyServer(function(input, output, session) {
    if(any(!input$responsecs%in%mresp()) | any(!input$varscs%in%mgrps() )) return(NULL)
    
    df=dat()$data
+   df=df[df$Use,]
    rangetp=sort(unique(df$tp))
    cat("Comp CS",rangetp[input$slidercs+1],'\n')
    p2=plotCS(df,input$responsecs,input$varscs,rangetp=rangetp[input$slidercs+1],usemax=input$radiocsMax)
@@ -231,8 +241,9 @@ shinyServer(function(input, output, session) {
  ############################################################################
 
  output$design <- renderTable({
-   datM=dat()[[1]]
-   tab=table(datM$grp[datM$Use],datM$tp[datM$Use])
+   datM=dat()$data
+   datM=datM[datM$Use,]
+   tab=table(datM$grp,datM$tp[datM$Use])
    return(tab)
  })
 #  
@@ -246,15 +257,15 @@ shinyServer(function(input, output, session) {
  output$filetableshort <- renderDataTable({
    if(is.null(input$responsedat)) return(NULL)
    if(!any(input$responsedat%in%mresp())) return(NULL)
-   datM=dat()
-   top=datM[[1]]
-   top=top[,names(top)%in%c("Id","Use","grp","tp",input$responsedat )]
+   top=dat()$data
+  top=top[,names(top)%in%c("Id","Use","grp","tp",input$responsedat )]
    
    ltps=sort(unique(top$tp))
    add=do.call('rbind',tapply(1:nrow(top),top[,"Id"],function(x)
      round(top[x[match(ltps,top[x,'tp'])],input$responsedat],2)))
    colnames(add)=ltps
-   tow=cbind(Id=tapply(as.character(top$Id),top$Id,unique),
+   tow=cbind(Use=tapply(as.character(top$Use),top$Id,unique),
+             Id=tapply(as.character(top$Id),top$Id,unique),
              Grp=tapply(as.character(top$grp),top$Id,unique),
              #Use=tapply(top$Use,top$Id,unique),
              add)
@@ -264,8 +275,7 @@ shinyServer(function(input, output, session) {
  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
  
    output$filetablelong <- renderDataTable({
-     datM=dat()
-       top=datM[[1]]
+     top=dat()$data
        top=top[,!names(top)%in%c('colorI','colorG')]
        return(top)
   },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
@@ -274,7 +284,8 @@ shinyServer(function(input, output, session) {
 output$plottc3a<-renderChart({
   if(any(!input$response%in%mresp()) | any(!input$vars%in%mgrps() )) return(NULL)
   df<-dat()$data
-   resp=input$response
+  df=df[df$Use,]
+  resp=input$response
   lgrps=input$vars
   h1=plotTC3(df,resp,lgrps,input$forcezero,type='All',se=input$tcse=='SE',defzero=as.numeric(input$tcdef))
   h1$addParams(dom = 'plottc3a')
@@ -284,6 +295,7 @@ output$plottc3a<-renderChart({
 output$plottc3b<-renderChart({
   if(any(!input$response%in%mresp()) | any(!input$vars%in%mgrps() )) return(NULL)
   df<-dat()$data
+  df=df[df$Use,]
   resp=input$response
   lgrps=input$vars
   h1=plotTC3(df,resp,lgrps,input$forcezero,type='Mean',se=input$tcse=='SE',defzero=as.numeric(input$tcdef))

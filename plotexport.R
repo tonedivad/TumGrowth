@@ -12,6 +12,7 @@ write(doc,file=inam,sep="\n")
 
 exportTC<-function(df,resp,lgrps,force2zero=FALSE,dogrps=TRUE,type='All',se=TRUE,defzero=NA){
   
+  df=df[df$Use,]
   df$Resp=round(df[,resp],3)
   xlim=pretty(seq(ifelse(force2zero,0,min(df$tp)),max(df$tp),length=9))
   miny=round(min(df$Resp,na.rm=T),3)
