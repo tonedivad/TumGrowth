@@ -64,7 +64,7 @@ shinyUI(
                        checkboxInput("exclzer", label = 'Exclude zeros', value = FALSE),
                        checkboxInput("imputezer", label = 'Replace zeros for log trans.', value = TRUE),
                        checkboxInput("trim", label = 'Trim same values at end', value = TRUE),
-                       div(align = "center", downloadButton("exporttxtDS", "Results"))
+                       div(align = "center", downloadButton("exporttxtDS", "Download data"))
       ),
       #################
       conditionalPanel(condition="input.tabs1=='Line charts'",
@@ -123,10 +123,12 @@ shinyUI(
                        div(align = "center", h4("Data input")),
                        uiOutput("boxeslg"),
                        uiOutput("choiceslg"),#,
-                       div(align = "center", h4("Mixed effect modelling")),
+                       div(align = "center", h4("Mixed effect modelling"),
                        checkboxInput("radiolongvar", label = 'Check group-heteroscedasticity', value = TRUE),
                        radioButtons("bfco", label =  'Outlier detection threshold:',inline = T,
                                     choices =rev(c('p<0.2','p<0.1','p<0.05','p<0.01','p<0.001','None')), selected = 'p<0.1'),
+                       actionButton("goButton", "Compute")),
+                       br(),
                        div(align = "center", downloadButton("exporttxtLG", "Results"))
                        
       ),
@@ -168,10 +170,10 @@ shinyUI(
                             bsCollapsePanel("Data in wide format", 
                                             uiOutput("choicesdat"),
                                             uiOutput("groupsdat"),
-                                            dataTableOutput("filetableshort"),style = "info"),
+                                            DT::dataTableOutput("filetableshort"),style = "info"),
                             bsCollapsePanel("Data in long format",
                                             uiOutput("groupsdat2"),
-                                            dataTableOutput("filetablelong"),style = "info")
+                                            DT::dataTableOutput("filetablelong"),style = "info")
                             #bsCollapsePanel("Original data", dataTableOutput("filetableori"),style = "info")
                  ),
                  lastline()

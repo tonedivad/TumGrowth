@@ -135,7 +135,10 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   df$colorG=getCols(df$grp)[as.character(df$grp)]
   rownames(df)=paste(df$Id,df$tp,sep='.')
   
-  list(data=df,Grp=levels(df$grp),Resp=lResp)
+  l2excl=unique(df$Id[!df$Use])
+  print(l2excl)
+  
+  list(data=df,Grp=levels(df$grp),Resp=lResp,Excl=l2excl)
 }
 ########################################################################################################################
 ########################################################################################################################

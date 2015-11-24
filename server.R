@@ -30,13 +30,25 @@ shinyServer(function(input, output, session) {
    ifile=fileData()
    cat("Lets load the data",ifile,"\n")
     shiny:::flushReact()
-    datM=loadFile(ifile,imputezer=input$imputezer,trim=input$trim,exclzer=input$exclzer)
-  #  print(str(datM))
-    datM
+    loadFile(ifile,imputezer=input$imputezer,trim=input$trim,exclzer=input$exclzer)
   })
   
+#  dat <- eventReactive(input$filetableshort_rows_selected,dat0){
+#    df=dat0()
+#    lsel=input$filetableshort_rows_selected
+#    print(lsel)
+#    if(!is.null(lsel)){
+#    if(lsel %in%df$Excl) df$Excl=df$Excl[!df$Excl%in%lsel]
+#    else df$Excl=c(df$Excl,lsel)
+#    df$Use=!(df$Id%in%df$Excl)
+#    }
+#    print(df$Excl)
+#    df
+#  })
+#    
  mresp <- reactive(dat()$Resp)
  mgrps <- reactive(dat()$Grp)
+ l2Excl <- reactive(dat()$Excl)
  refkm <- eventReactive(input$varskm,input$varskm)
  reflg <- eventReactive(input$varslg,input$varslg)
  refcs <- eventReactive(input$varscs,input$varscs)
@@ -114,6 +126,7 @@ shinyServer(function(input, output, session) {
  output$slidekmui<-renderUI({
    if(is.null(input$responsekm)) return(NULL)
    df=dat()$data
+  # df$Use=!(df$Id%in%l2excl())
    df=df[df$Use,]
    
    if(!input$responsekm%in%names(df)) return(NULL)
@@ -183,12 +196,13 @@ shinyServer(function(input, output, session) {
  
  ############################################################################
  
- model<-reactive({
-   if(is.null(input$responselg) | is.null(input$varslg)) return(NULL)
+# model<-reactive({
+model<-eventReactive(input$goButton,{
+     if(is.null(input$responselg) | is.null(input$varslg)) return(NULL)
    if(any(!input$responselg%in%mresp()) | any(!input$varslg%in%mgrps() )) return(NULL)
    data<-dat()$data
    data=data[data$Use,]
-   
+  # print(input$filetableshort_rows_selected)
    cat("Comp model",input$varslg,'\n')
    bfco=input$bfco
    if(bfco=='None') bfco=0 else bfco=as.numeric(gsub('p<','',bfco))
@@ -271,6 +285,8 @@ shinyServer(function(input, output, session) {
    if(is.null(input$responsedat) | is.null(input$groupsdat)) return(NULL)
    if(!any(input$responsedat%in%mresp()) | !any(input$groupsdat%in%mgrps())) return(NULL)
    top=dat()$data
+   l2excl=dat()$Excl
+   print(l2excl)
   top=top[,names(top)%in%c("Id","Use","grp","tp",input$responsedat )]
   top=top[top$grp%in%input$groupsdat,] 
    ltps=sort(unique(top$tp))
@@ -283,8 +299,9 @@ shinyServer(function(input, output, session) {
              add)
    rownames(tow)=tapply(as.character(top$Id),top$Id,unique)
    tow=tow[order(factor(tow[,"Grp"],levels=levels(top$grp))),]
-   return(tow)
- },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE))
+   tow
+ },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE),server=TRUE,
+ selection = list(mode = 'multiple', selected = l2Excl()))
  
   output$filetablelong <-  DT::renderDataTable({
     if(is.null(input$groupsdat2)) return(NULL)
@@ -447,7 +464,7 @@ output$exporttxtKM<-downloadHandler(
   }
 )
 output$exporttxtDS<-downloadHandler(
-  filename = function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],"-data.txt",sep=""),
+  filename = function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],"-data.tsv",sep=""),
   content = function(file) {
     what=sapply(downloadFile(dat()),paste,collapse='\t')
     cat(what, file = file, sep = "\n")
