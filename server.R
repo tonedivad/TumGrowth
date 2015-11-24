@@ -395,8 +395,10 @@ output$modCS<-renderTable({
 output$downloadCS <- downloadHandler(
   filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-CS.',tolower(input$csplot),sep=""),
   content <- function(file) {
-    if(input$csplot=='Svg')
+    if(input$csplot=='Svg'){
+      require(RSVGTipsDevice)
       devSVGTips(file, width =input$cswidth, height =input$csheight,toolTipMode = 0)
+    }
     if(input$csplot=='Png')
       png(file, width =as.numeric(input$cswidth)*96, height =as.numeric(input$csheight)*96)
     par(mar=c(3.4,4,1,.1),lwd=2,cex=input$cscex,cex.axis=input$cscex,cex.lab=input$cscex)
@@ -411,8 +413,10 @@ output$downloadCS <- downloadHandler(
 output$downloadKM <- downloadHandler(
   filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-KM.',tolower(input$kmfplot),sep=""),
   content <- function(file) {
-    if(input$kmfplot=='Svg')
+    if(input$kmfplot=='Svg'){
+      require(RSVGTipsDevice)
       devSVGTips(file, width =input$kmwidth, height =input$kmheight,toolTipMode = 0)
+    }
     if(input$kmfplot=='Png')
       png(file, width =as.numeric(input$kmwidth)*96, height =as.numeric(input$kmheight)*96)
     par(mar=c(5.5,5,.5,.5),lwd=2,cex=input$kmcex,cex.axis=input$kmcex,cex.lab=input$kmcex)
@@ -426,8 +430,10 @@ output$downloadKM <- downloadHandler(
 output$downloadTC <- downloadHandler(
   filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-TC',tolower(input$tcfplot),sep=""),
   content <- function(file) {
-    if(input$tcfplot=='Svg')
+    if(input$tcfplot=='Svg'){
+      require(RSVGTipsDevice)
       devSVGTips(file, width =input$tcwidth, height =input$tcheight,toolTipMode = 0)
+    }
     if(input$tcfplot=='Png')
       png(file, width =as.numeric(input$tcwidth)*96, height =as.numeric(input$tcheight)*96)
     par(mar=c(3.4,4,1,.1),lwd=2,lend=0,cex=input$tccex,cex.axis=input$tccex,cex.lab=input$tccex)

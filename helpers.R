@@ -8,7 +8,6 @@ library(RColorBrewer)
 library(car)
 library(coxphf)
 library(beeswarm)
-library(RSVGTipsDevice)
 library(rCharts)
 library(DT)
 
