@@ -82,8 +82,17 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   for(imeas in unique(lmeas)){
     l=which(lmeas==imeas)
     df=data.frame(X=round(as.vector(mat[,l]),4),Id=rep(uids,length(l)),
-                  tp=rep(ltps[l],each=nrow(mat)),stringsAsFactors = F)
-    rownames(df)=paste(df$tp,df$Id,sep=";;")
+                  tp=rep(ltps[l],each=nrow(mat)),Grp=rep(grps,length(l)),stringsAsFactors = F)
+    df$IdTp=paste(df$tp,df$Id,sep=";;")
+    if(any(table(df$IdTp)>1)){
+      ldups=names(which(table(df$IdTp)>1))
+      cat("Duplicated time points:",ldups,"\n")
+      newx=tapply(df$X,df$IdTp,median,na.rm=T)
+      df=df[match(names(newx),df$IdTp),]
+      df$X=newx[df$IdTp]
+    }
+    rownames(df)=df$IdTp
+    df=df[order(df$Grp,df$Id,df$tp),1:3]
     
     if(trim){
     l2rm=NULL
