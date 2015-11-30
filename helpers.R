@@ -127,19 +127,25 @@ ylim=pretty(seq(0.95*miny,max(df$Resp2),length=8))
     
     tmp=t(do.call("cbind",tapply(idf$y[l],idf$x[l],function(x) c(n=length(x),y=mean(x),se=sd(x)/sqrt(length(x))))))
     tmp=data.frame(cbind(tmp,x=tapply(idf$x[l],idf$x[l],unique)),grp=i)
-    tmp$y=round(tmp$y,2)
-    tmp$se=round(tmp$se,2)
+    tmp$ymin=round(tmp$y-ifelse(se,1,1.96)*tmp$se,3)
+    tmp$ymax=round(tmp$y+ifelse(se,1,1.96)*tmp$se,3)
+    if(any(is.na(tmp$se))) tmp$ymin[is.na(tmp$se)]=tmp$ymax[is.na(tmp$se)]=tmp$y[is.na(tmp$se)]
+    tmp$y=round(tmp$y,3)
+    tmp$se=round(tmp$se,3)
     tmp$color=unname(idf$colorG[l][1])
     a$series(data = lapply(1:nrow(tmp),function(j) as.list(tmp[j,])), name=i,type = "line",color=tmp$color[1],lineWidth=4)
-    tmp$y=tmp$y+ifelse(se,1,1.96)*tmp$se
-    a$series(data = lapply(1:nrow(tmp),function(j) as.list(tmp[j,])), name=i,type = "line",color=tmp$color[1],dashStyle= 'dot',marker=list(enabled=F))
-    tmp$y=tmp$y-2*ifelse(se,1,1.96)*tmp$se
-    a$series(data = lapply(1:nrow(tmp),function(j) as.list(tmp[j,])), name=i,type = "line",color=tmp$color[1],dashStyle= 'dot',marker=list(enabled=F))
+    a$series(data = lapply(which(tmp$grp==i),function(j) 
+      unname(as.list(tmp[j,c("x","ymin","ymax")]))),type = "arearange",# showInLegend = FALSE,
+      fillOpacity = 0.3,lineWidth = 0,color=unname(tmp$color[which(tmp$grp==i)][1]),zIndex = 0)
+    
   }
-  a$tooltip( formatter = "#! function() { return this.point.grp + ' (' + this.point.n + ') at ' + this.point.x + ': ' + this.point.y ; } !#")
   a$yAxis(title = list(text = "Response"), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
   a$xAxis(title = list(text = "Time"), min =  min(xlim), max = max(xlim), tickInterval = diff(xlim)[1])
-  a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Group"))
+  a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Treatment group"))
+#   a$tooltip( formatter = "#! function() { return this.point.grp + ' (' + this.point.n + ') at ' + this.point.x + ': ' + this.point.y ; } !#")
+#   a$yAxis(title = list(text = "Response"), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
+#   a$xAxis(title = list(text = "Time"), min =  min(xlim), max = max(xlim), tickInterval = diff(xlim)[1])
+#   a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Group"))
   
   return(a)
   
