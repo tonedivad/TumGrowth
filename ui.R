@@ -58,7 +58,7 @@ shinyUI(
                                                      list("Longitudinal test"="Test1","Kaplan-Meier test"="Test2","Cross-sectional test"="TestCRM"))
                        ),
                        conditionalPanel(condition="input.dataInput=='2'",
-                                        fileInput('browse', 'File to upload', multiple = FALSE),
+                                        fileInput('browse', 'File to upload (tab separated/no UTF16)', multiple = FALSE),
                                         radioButtons("loadtyp", NULL,list("Long"="long","Wide"="wide"),inline=TRUE)
                        ),
                        checkboxInput("exclzer", label = 'Exclude zeros', value = FALSE),
