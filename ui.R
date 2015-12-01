@@ -74,7 +74,7 @@ shinyUI(
                        div(align = "center", h4("Visualisation"),
                            checkboxInput("forcezero", label = 'Join TC to zero', value = FALSE),
                            textInput3(inputId="tcdef", label="Response at t=0", value = '', class="input-small"),
-                           radioButtons("tcse",NULL, list("SE"="SE","95% CI"="CI"),inline=TRUE)),
+                           radioButtons("tcse",NULL, list("SE"="SE","SD"="SD"),inline=TRUE)),
                        br(),
                        div(align = "center", h4("Image export"),
                            textInput3(inputId="tcwidth", label="Width", value = 5, class="input-small"),
@@ -89,36 +89,7 @@ shinyUI(
                            radioButtons("tcfplot", label =  NULL,inline = T,choices =c('Svg','Png'),selected = 'Svg'),
                            downloadButton("downloadTC", "Plot"))
       ),
-      #################
-      conditionalPanel(condition="input.tabs1=='Survival'",
-                       div(align = "center", h4("Data input")),
-                       uiOutput("boxeskm"),
-                       uiOutput("choiceskm"),#,
-                       # br(),
-                       div(align = "center", h4("Censoring on response/time")),
-                       uiOutput("slidekmui"),
-                       uiOutput("sliderkmtui"),                       
-                       br(),
-                       div(align = "center", h4("Visualisation"),
-                           textInput3(inputId="kmshift", label="Shifting factor", value = 0.1, class="input-small")),    
-                       br(),
-                       div(align = "center", h4("Image export"),
-                       textInput3(inputId="kmwidth", label="Width", value = 5, class="input-small"),
-                       textInput3(inputId="kmheight", label="Height", value = 4, class="input-small"),
-                       textInput3(inputId="kmcex", label="Cex", value = 1, class="input-small"),
-                       textInput3(inputId="kmcexpt", label="CexPt", value = 1.2, class="input-small"),
-                       textInput3(inputId="kmlwd", label="Lwd", value = 1.5, class="input-small"),
-                       tags$head(tags$style(type="text/css", "#kmwidth {width: 35px}")),
-                       tags$head(tags$style(type="text/css", "#kmheight {width: 35px}")),
-                       tags$head(tags$style(type="text/css", "#kmshift {width: 35px}")),
-                       tags$head(tags$style(type="text/css", "#kmlwd {width: 35px}")),
-                       tags$head(tags$style(type="text/css", "#kmcex {width: 35px}")),
-                       tags$head(tags$style(type="text/css", "#kmcexpt {width: 35px}"))),
-                       div(align = "center", radioButtons("kmfplot", label =  NULL,inline = T,
-                                                          choices =c('Svg','Png'),selected = 'Svg'),
-                           downloadButton("downloadKM", "Plot"),downloadButton("exporttxtKM", "Results"))
-      ),
-      #################
+     #################
       conditionalPanel(condition="input.tabs1=='Longitudinal'",
                        div(align = "center", h4("Data input")),
                        uiOutput("boxeslg"),
@@ -159,7 +130,36 @@ shinyUI(
                        div(align = "center", radioButtons("csplot", label =  NULL,inline = T,
                                                           choices =c('Svg','Png'),selected = 'Svg'),
                            downloadButton("downloadCS", "Plot"),downloadButton("exporttxtCS", "Results"))
-      )
+      ),
+     #################
+     conditionalPanel(condition="input.tabs1=='Survival'",
+                      div(align = "center", h4("Data input")),
+                      uiOutput("boxeskm"),
+                      uiOutput("choiceskm"),#,
+                      # br(),
+                      div(align = "center", h4("Censoring on response/time")),
+                      uiOutput("slidekmui"),
+                      uiOutput("sliderkmtui"),                       
+                      br(),
+                      div(align = "center", h4("Visualisation"),
+                          textInput3(inputId="kmshift", label="Shifting factor", value = 0.1, class="input-small")),    
+                      br(),
+                      div(align = "center", h4("Image export"),
+                          textInput3(inputId="kmwidth", label="Width", value = 5, class="input-small"),
+                          textInput3(inputId="kmheight", label="Height", value = 4, class="input-small"),
+                          textInput3(inputId="kmcex", label="Cex", value = 1, class="input-small"),
+                          textInput3(inputId="kmcexpt", label="CexPt", value = 1.2, class="input-small"),
+                          textInput3(inputId="kmlwd", label="Lwd", value = 1.5, class="input-small"),
+                          tags$head(tags$style(type="text/css", "#kmwidth {width: 35px}")),
+                          tags$head(tags$style(type="text/css", "#kmheight {width: 35px}")),
+                          tags$head(tags$style(type="text/css", "#kmshift {width: 35px}")),
+                          tags$head(tags$style(type="text/css", "#kmlwd {width: 35px}")),
+                          tags$head(tags$style(type="text/css", "#kmcex {width: 35px}")),
+                          tags$head(tags$style(type="text/css", "#kmcexpt {width: 35px}"))),
+                      div(align = "center", radioButtons("kmfplot", label =  NULL,inline = T,
+                                                         choices =c('Svg','Png'),selected = 'Svg'),
+                          downloadButton("downloadKM", "Plot"),downloadButton("exporttxtKM", "Results"))
+     )
       #################
     ), ## sidepanel
     mainPanel(
@@ -184,21 +184,6 @@ shinyUI(
                             bsCollapsePanel("All",
                                             showOutput("plottc3a", "highcharts"),style = "info"),
                             bsCollapsePanel("Mean", showOutput("plottc3b", "highcharts"),style = "info")
-                 ),
-                 lastline()
-        ),
-        tabPanel("Survival",
-                 bsCollapse(id = "collapseKM", open = "Kaplan Meier",
-                            bsCollapsePanel("Kaplan meier", showOutput("plotkm", "highcharts"),style = "info"),
-                            bsCollapsePanel("Cox regression",
-                                            uiOutput("radiokm"),
-                                            checkboxInput("radiokmFirth", label = 'Use Firth penalised Cox regression', value = FALSE),                                          
-                                            tableOutput("modKM"),
-                                            DT::dataTableOutput("hrKM"), style = "info"),
-                            bsCollapsePanel("Censoring information", tableOutput("sumKM"),
-                                            h6('For each animal, the last measurement is given in parenthesis followed by +
-                                               if death occured.'),
-                                            style = "info")
                  ),
                  lastline()
         ),
@@ -227,6 +212,21 @@ shinyUI(
                             bsCollapsePanel("Time point selection",tableOutput("sumCS"),
                                             h6('Time of sampling is specified for each animals if different in the specified time range.'),
                                             style = "info")),
+                 lastline()
+        ),
+        tabPanel("Survival",
+                 bsCollapse(id = "collapseKM", open = "Kaplan Meier",
+                            bsCollapsePanel("Kaplan meier", showOutput("plotkm", "highcharts"),style = "info"),
+                            bsCollapsePanel("Cox regression",
+                                            uiOutput("radiokm"),
+                                            checkboxInput("radiokmFirth", label = 'Use Firth penalised Cox regression', value = FALSE),                                          
+                                            tableOutput("modKM"),
+                                            DT::dataTableOutput("hrKM"), style = "info"),
+                            bsCollapsePanel("Censoring information", tableOutput("sumKM"),
+                                            h6('For each animal, the last measurement is given in parenthesis followed by +
+                                               if death occured.'),
+                                            style = "info")
+                 ),
                  lastline()
         ),
         id="tabs1"

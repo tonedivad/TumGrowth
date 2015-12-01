@@ -71,14 +71,14 @@ if(type!='All'){
   for(i in levels(idf$grp)){
   l=which(idf$grp==i)
 
-tmp=t(do.call("cbind",tapply(idf$Resp[l],idf$tp[l],function(x) c(n=length(x),Resp=mean(x),se=sd(x)/sqrt(length(x))))))
+tmp=t(do.call("cbind",tapply(idf$Resp[l],idf$tp[l],function(x) c(n=length(x),Resp=mean(x),sd=sd(x),se=sd(x)/sqrt(length(x))))))
 tmp=data.frame(cbind(tmp,tp=tapply(idf$tp[l],idf$tp[l],unique)),grp=i)
 tmp$Resp=round(tmp$Resp,2)
 tmp$se=round(tmp$se,2)
 tmp$color=unname(idf$colorG[l][1])
 lines(tmp$tp,tmp$Resp,col=tmp$col)
-lines(tmp$tp,tmp$Resp-ifelse(se,1,1.96)*tmp$se,col=tmp$col,lty=3)
-lines(tmp$tp,tmp$Resp+ifelse(se,1,1.96)*tmp$se,col=tmp$col,lty=3)
+lines(tmp$tp,tmp$Resp-ifelse(se,1,0)*tmp$se-ifelse(se,0,1)*tmp$sd,col=tmp$col,lty=3)
+lines(tmp$tp,tmp$Resp+ifelse(se,1,0)*tmp$se+ifelse(se,0,1)*tmp$sd,col=tmp$col,lty=3)
 }
 }
   legend(mean(xtk[1:2]),max(ytk),levels(idf$grp),ncol=nlevels(idf$grp),col=tapply(idf$colorG,idf$Id,unique),bty="n",lwd=par()$lwd)

@@ -125,10 +125,10 @@ ylim=pretty(seq(0.95*miny,max(df$Resp2),length=8))
   for(i in unique(idf$grp)){
     l=which(idf$grp==i)
     
-    tmp=t(do.call("cbind",tapply(idf$y[l],idf$x[l],function(x) c(n=length(x),y=mean(x),se=sd(x)/sqrt(length(x))))))
+    tmp=t(do.call("cbind",tapply(idf$y[l],idf$x[l],function(x) c(n=length(x),y=mean(x),sd=sd(x),se=sd(x)/sqrt(length(x))))))
     tmp=data.frame(cbind(tmp,x=tapply(idf$x[l],idf$x[l],unique)),grp=i)
-    tmp$ymin=round(tmp$y-ifelse(se,1,1.96)*tmp$se,3)
-    tmp$ymax=round(tmp$y+ifelse(se,1,1.96)*tmp$se,3)
+    tmp$ymin=round(tmp$y-ifelse(se,1,0)*tmp$se-ifelse(se,0,1)*tmp$sd,3)
+    tmp$ymax=round(tmp$y+ifelse(se,1,0)*tmp$se+ifelse(se,0,1)*tmp$sd,3)
     if(any(is.na(tmp$se))) tmp$ymin[is.na(tmp$se)]=tmp$ymax[is.na(tmp$se)]=tmp$y[is.na(tmp$se)]
     tmp$y=round(tmp$y,3)
     tmp$se=round(tmp$se,3)
