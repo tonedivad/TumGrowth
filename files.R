@@ -34,7 +34,8 @@ downloadFile<-function(df){
 }
 
 #############################################################################################
-loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
+loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=FALSE,trim=TRUE,trimzer=TRUE,exclzer=FALSE,sumids=FALSE){
+
   tmp=strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw")),"\t")
   
   whichtps=grep("^[0-9]+$",tmp[[1]])
@@ -44,25 +45,28 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   whichuse=grep("^[USEuse]{3}$",tmp[[1]])
   if(length(whichuse)>1) whichuse=whichuse[1]
   
-  ids=sapply(tmp,function(x) gsub(" ","",x[whichid]))
   grps=sapply(tmp,function(x) gsub(" ","",x[whichgrp]))
   if(length(whichid)==0){
     ids=paste(substr(grps,1,3),".M",sep="")
     for(k in unique(ids)) ids[ids==k]=paste(ids[ids==k],1:sum(ids==k),sep="")
-  }
+  } else ids=sapply(tmp,function(x) gsub(" ","",x[whichid]))
+
   use=rep(TRUE,length(grps))
   if(length(whichuse)==1) use=sapply(tmp,function(x) x[whichuse])!=""
   lmices=which(ids!="" & grps!="")
   lmices=lmices[lmices>2]
   
-  uids=gsub(" ","",ids[lmices])
-  while(any(table(uids)>1)){
-    iredu=names(which(table(uids)>1))[1]
-    uids[uids==iredu]=paste(uids[uids==iredu],1:sum(uids==iredu),sep=".")
-  }
-  use=use[lmices]
-  grps=grps[lmices]
+  uids=uidsold=gsub(" ","",ids[lmices])
+  #if(!sumids & any(table(uids)>1)){
+    while(any(table(uids)>1)){
+      iredu=names(which(table(uids)>1))[1]
+      uids[uids==iredu]=paste(uids[uids==iredu],1:sum(uids==iredu),sep=".")
+    }
+  #}
+  use=use[lmices];grps=grps[lmices]
   names(grps)=names(use)=uids
+  
+  
   mat=t(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))))
   
   lmeas=tmp[[2]][whichtps]=gsub(" ","",tmp[[2]][whichtps])
@@ -81,9 +85,10 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   allmeas=list()
   for(imeas in unique(lmeas)){
     l=which(lmeas==imeas)
-    df=data.frame(X=round(as.vector(mat[,l]),4),Id=rep(uids,length(l)),
-                  tp=rep(ltps[l],each=nrow(mat)),Grp=rep(grps,length(l)),stringsAsFactors = F)
+    df=data.frame(X=round(as.vector(mat[,l]),ndigit),Id=rep(uids,length(l)),tp=rep(ltps[l],each=nrow(mat)),
+                  Grp=rep(grps,length(l)),Idold=rep(uidsold,length(l)),stringsAsFactors = F)
     df$IdTp=paste(df$tp,df$Id,sep=";;")
+    df$IdoTp=paste(df$tp,df$Idold,sep=";;")
     if(any(table(df$IdTp)>1)){
       ldups=names(which(table(df$IdTp)>1))
       cat("Duplicated time points:",ldups,"\n")
@@ -92,18 +97,52 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
       df$X=newx[df$IdTp]
     }
     rownames(df)=df$IdTp
-    df=df[order(df$Grp,df$Id,df$tp),1:3]
+    df=df[order(df$Grp,df$Id,df$tp),]
     
+    ############
+    ## Exclude trailing zeros/NAs
+    if(trimzer){
+      l2rm=NULL
+      for(ipid in unique(df$Id)){
+        idf=df[df$Id==ipid,]
+        idf=idf[order(-idf$tp),]
+        while((is.na(idf[1,1]) | idf[1,1]==0) & nrow(idf)>0){
+          l2rm=c(l2rm,rownames(idf)[1])
+          idf=idf[-1,]
+        }
+      }
+      if(length(l2rm)>0){
+        #cat("Excl in",imeas,":",l2rm,"\n",sep=" ")
+        df[l2rm,1]=NA
+      }
+    }
+    
+    ############
+    ## Sum at same Id/Tp
+    if(sumids & max(rowSums(table(df$Idold,df$Grp)>0))==1){
+      df=data.frame(X=tapply(df$X,df$IdoTp,function(x) ifelse(all(is.na(x)),NA,sum(x,na.rm=T))),
+                    Id=tapply(df$Idold,df$IdoTp,unique),tp=tapply(df$tp,df$IdoTp,unique),Grp=tapply(df$Grp,df$IdoTp,unique),
+                    stringsAsFactors = F)
+    df=df[order(df$Grp,df$Id,df$tp),]
+    names(grps)=names(use)=uidsold
+    }
+    
+    df=df[,1:4]
+    
+    ############
+    ## Remove same values from the end
     if(trim){
     l2rm=NULL
     for(ipid in unique(df$Id)){
       idf=df[df$Id==ipid,]
       idf=idf[order(-idf$tp),]
+      if(all(is.na(idf[,1]))) next
+      while(is.na(idf[1,1]) & nrow(idf)>0) idf=idf[-1,]
       
       if(!exclzer) l2excl=which(diff(idf[,1])==0 & idf[-nrow(idf),1]>0)
       if(exclzer) l2excl=which(diff(idf[,1])==0)
       if(length(l2excl)>0) l2excl=l2excl[l2excl==(1:length(l2excl))]
-      if(exclzer & any(idf[,1]==0,na.rm = TRUE)) l2excl=c(l2excl,which(idf[,1]<=0)) 
+ #     if(exclzer & any(idf[,1]==0,na.rm = TRUE)) l2excl=c(l2excl,which(idf[,1]<=0)) 
       if(length(l2excl)>0) l2rm=c(l2rm,rownames(idf)[l2excl])
     }
     if(length(l2rm)>0){
@@ -124,21 +163,39 @@ loadFile<-function(ifile,imputezer=TRUE,trim=TRUE,exclzer=FALSE){
   rownames(df)=umeas
   df=df[rowSums(is.na(df[,unique(lmeas),drop=F]))<length(unique(lmeas)),,drop=F]
   df=df[which(!apply(is.na(df),1,all)),,drop=F]
-  for(i in unique(lmeas)){
-    v=round(log(df[,i]),4)
-    if(!imputezer) v[is.infinite(v)]=NA
-    if(imputezer) v[is.infinite(v)]=log(min(df[df[,i]>0,i],na.rm=T)/2)
-    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.2))  df[,paste(i,"log",sep=".")]=v
-  }
-  lResp=names(df)
-  
   df$tp=as.numeric(gsub(";;.*","",rownames(df)))
   df$Id=gsub("^[0-9]+;;","",rownames(df))
   df$Use=use[df$Id]
   df$grp=factor(grps[df$Id],levels = unique(grps))
   rownames(df)=1:nrow(df)
-  
   df=df[order(df$grp,!df$Use,df$Id,df$tp),]
+  
+  lResp=unique(lmeas)
+  if(exclzer) for(i in lResp) df[which(df[,i]==0),i]=NA
+  df=df[!rowSums(is.na(df[,lResp,drop=FALSE]))==length(lResp),]
+  rownames(df)=1:nrow(df)
+  
+  
+ if(setday0){
+   ftp=tapply(1:nrow(df),df$Id,function(x) sapply(lResp,function(y) min(df$tp[x[min(which(df[x,y]>0))]],na.rm=T)))
+  for(i in names(ftp)[!is.infinite(ftp)]){
+    if(any(df$Id==i & df$tp<ftp[i])) for(k in lResp) df[which(df$Id==i & df$tp<ftp[i]),k]=NA
+    df$tp[df$Id==i]=df$tp[df$Id==i]-ftp[i]+1
+  }
+  df=df[which(df$tp>=0),]
+ }
+  
+  for(i in lResp){
+    v=round(log(df[,i]),ndigit)
+    if(!imputezer) v[is.infinite(v)]=NA
+    if(imputezer) v[is.infinite(v)]=log(min(df[df[,i]>0,i],na.rm=T)/2)
+    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.2)){
+      df[,paste(i,"log",sep=".")]=v
+      lResp=c(lResp,paste(i,"log",sep="."))
+    }
+  }
+  df=df[,c(which(names(df)%in%lResp),which(!names(df)%in%lResp))]
+  
   
   df$colorI=getCols(df$grp,as.character(df$Id))[as.character(df$Id)]
   df$colorG=getCols(df$grp)[as.character(df$grp)]

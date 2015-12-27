@@ -28,9 +28,12 @@ shinyServer(function(input, output, session) {
   
  dat <- reactive({
    ifile=fileData()
+   if (!is.null(ifile)){
    cat("Lets load the data",ifile,"\n")
     shiny:::flushReact()
-    loadFile(ifile,imputezer=input$imputezer,trim=input$trim,exclzer=input$exclzer)
+    loadFile(ifile,ndigit=as.numeric(3),imputezer=input$imputezer,trim=input$trim, setday0=input$setday0,trimzer=input$trimzer,
+             exclzer=input$exclzer,sumids=input$sumids)
+   }
   })
   
 #  dat <- eventReactive(input$filetableshort_rows_selected,dat0){
@@ -132,11 +135,11 @@ shinyServer(function(input, output, session) {
    if(!input$responsekm%in%names(df)) return(NULL)
    resp=gsub("\\..*","",input$responsekm)
    f=2
-   valr=unname(c(floor(quantile(df[,resp],.5,na.rm=T)/f),ceiling(max(df[,resp],na.rm=T)/f))*f)
-   valrax=pretty(seq(valr[1],valr[2],length=7))
-   
+#   valr=unname(c(floor(quantile(df[,resp],.5,na.rm=T)/f),ceiling(max(df[,resp],na.rm=T)/f))*f)
+   dvalr=diff(pretty(df[,resp],n=100))[1]
+   valr=pretty(df[,resp])
    sliderInput(inputId="slidekm",label=NULL,
-               min=min(valr),max=max(valr),value=max(valr),step =round(diff(valr)/100))
+               min=min(valr),max=max(valr),value=max(valr),step =dvalr)
  })
  
  output$sliderkmtui<-renderUI({

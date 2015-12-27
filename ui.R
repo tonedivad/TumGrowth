@@ -58,12 +58,16 @@ shinyUI(
                                                      list("Longitudinal test"="Test1","Kaplan-Meier test"="Test2","Cross-sectional test"="TestCRM"))
                        ),
                        conditionalPanel(condition="input.dataInput=='2'",
-                                        fileInput('browse', 'File to upload (tab separated/no UTF16)', multiple = FALSE),
-                                        radioButtons("loadtyp", NULL,list("Long"="long","Wide"="wide"),inline=TRUE)
+                                        fileInput('browse', 'File to upload (tab separated/no UTF16)', multiple = FALSE)
+                                        #radioButtons("loadtyp", NULL,list("Long"="long","Wide"="wide"),inline=TRUE)
                        ),
-                       checkboxInput("exclzer", label = 'Exclude zeros', value = FALSE),
-                       checkboxInput("imputezer", label = 'Replace zeros for log trans.', value = TRUE),
-                       checkboxInput("trim", label = 'Trim same values at end', value = TRUE),
+                     #  textInput3(inputId="ndigit", label="Rounding", value = '4', class="input-small"),
+                     checkboxInput("sumids", label = '1: sum duplicated ids', value = FALSE),
+                     checkboxInput("trimzer", label = '2: remove zeros from the end', value = FALSE),
+                     checkboxInput("trim", label = '3: trim same values from the end', value = TRUE),
+                     checkboxInput("setday0", label = '4: set day 1 at first detected', value = FALSE),
+                     checkboxInput("exclzer", label = '5: exclude any other zeros', value = FALSE),
+                     checkboxInput("imputezer", label = '6: replace zeros for log trans.', value = TRUE),
                        div(align = "center", downloadButton("exporttxtDS", "Download data"))
       ),
       #################
