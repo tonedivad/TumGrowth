@@ -9,7 +9,7 @@
 }
 
 
-plotKM<-function(df,resp,lgrps=NULL,lastT=max(df$tp,na.rm=T),lastM=Inf,nextday=FALSE,shift0=0){
+plotKM<-function(df,resp,lgrps=NULL,lastT=max(df$tp,na.rm=T),lastM=Inf,nextday=FALSE,incllastT=FALSE,shift0=0){
   
   if(length(lgrps)==0) lgrps=levels(df$grp)
   df=df[df$grp%in%lgrps & df$Use,]
@@ -22,11 +22,11 @@ plotKM<-function(df,resp,lgrps=NULL,lastT=max(df$tp,na.rm=T),lastM=Inf,nextday=F
   ndf$grp=factor(df$grp[match(rownames(ndf),df$Id)])
   ndf$Id=df$Id[match(rownames(ndf),df$Id)]
   #ndf$Event0=sapply(ndf$Id,function(x) length(which(df$Id==x & df$tp>ndf[x,]$Time & !is.na(df[x,]$Resp)))>0)
-  ndf$Event=(ndf$Time!=lastT)
+  if(incllastT) ndf$Event=(ndf$Time<=lastT & ndf$Resp>0) else  ndf$Event=(ndf$Time<lastT & ndf$Resp>0)
   
   if(nextday){
     ltps=sort(unique(df$tp))
-    l=which(ndf$Event & ndf$Time!=lastT)
+    if(incllastT) l=which(ndf$Event & ndf$Time<=lastT & ndf$Resp>0) else  l=which(ndf$Event & ndf$Time<lastT & ndf$Resp>0)
     if(length(l)>0) 
       for(i in l) ndf$Time[i]=min(ltps[ltps>ndf$Time[i]])
   }
@@ -81,7 +81,7 @@ plotKM<-function(df,resp,lgrps=NULL,lastT=max(df$tp,na.rm=T),lastM=Inf,nextday=F
   exptxt=c(exptxt,list('****Data***'),list(colnames(ndf2)))
   for(i in 1:nrow(ndf2)) exptxt=c(exptxt,list(ndf2[i,]))
   
-  return(list(plot=a,df=ndf,akms=akms,sumids=sumids,exptxt=exptxt,resp=resp,lgrps=lgrps,lastT=lastT,lastM=lastM))
+  return(list(plot=a,df=ndf,akms=akms,sumids=sumids,exptxt=exptxt,resp=resp,lgrps=lgrps,lastT=lastT,lastM=lastM,incllastT=incllastT))
   }
 
 compKM<-function(objres,ref,firth=FALSE){
@@ -130,7 +130,7 @@ compKM<-function(objres,ref,firth=FALSE){
   }
   
   list(df=ndf,mod=modtab,hr=hrtab,sumids=objres$sumids,exptxt=exptxt,
-       resp=objres$resp,lgrps=objres$lgrps,lastT=objres$lastT,lastM=objres$lastM)
+       resp=objres$resp,lgrps=objres$lgrps,lastT=objres$lastT,lastM=objres$lastM,incllastT=objres$incllastT)
 }
 ############################################################################################
 ############################################################################################

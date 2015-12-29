@@ -232,7 +232,8 @@ model<-eventReactive(input$goButton,{
    cat("Comp KM",input$varskm,'\n')
    ltps=sort(unique(df$tp))
    print(ltps)
-   p1=plotKM(df,resp=input$responsekm,lgrps=input$varskm,lastM = input$slidekm,lastT =ltps[input$sliderkmt+1],shift0=as.numeric(input$kmshift))
+   p1=plotKM(df,resp=input$responsekm,lgrps=input$varskm,lastM = input$slidekm,lastT =ltps[input$sliderkmt+1],
+             incllastT=input$incllastT,shift0=as.numeric(input$kmshift))
    return(p1)
    
  })
