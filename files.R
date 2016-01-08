@@ -66,8 +66,8 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=FALSE,trim=TRUE,trimzer
   use=use[lmices];grps=grps[lmices]
   names(grps)=names(use)=uids
   
-  
-  mat=t(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))))
+  if(length(whichtps)>1)  mat=t(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))))
+  if(length(whichtps)==1)  mat=matrix(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))),ncol=1)
   
   lmeas=tmp[[2]][whichtps]=gsub(" ","",tmp[[2]][whichtps])
   umeas=unique(lmeas)
@@ -111,10 +111,8 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=FALSE,trim=TRUE,trimzer
           idf=idf[-1,]
         }
       }
-      if(length(l2rm)>0){
-        #cat("Excl in",imeas,":",l2rm,"\n",sep=" ")
-        df[l2rm,1]=NA
-      }
+      if(length(l2rm)>0)    df[l2rm,1]=NA
+      
     }
     
     ############

@@ -4,6 +4,7 @@ plotCS<-function(df,resp,lgrps,rangetp,usemax=FALSE){
   if(length(lgrps)==0) lgrps=levels(df$grp)
   df$Resp=df[,resp]
   if(length(lgrps)<1) lgrps=levels(df$grp)
+  if(length(rangetp)!=2) rangetp=range(df$tp,na.rm=T)
 #  print(rangetp)
   l=which(df$grp%in%lgrps & !is.na(df$Resp) & df$tp>=rangetp[1]  & df$tp<=rangetp[2])
 
@@ -22,7 +23,7 @@ idf=idf[order(idf$grp,idf$Id,idf$tp),]
   if(newrange[1]==newrange[2]) ylab=paste("Response at time=",newrange[1],sep="")
   
   #color=unname(tapply(df$colorG,df$grp,unique)[lgrps])
-  bws=beeswarm(Resp~grp,idf,do.plot=F,pwcol=idf$colorG,cex=1,spacing=10)
+  bws=beeswarm(Resp~grp,idf,do.plot=F,pwcol=idf$colorG,cex=1,spacing=8)
   bws$Id=idf$Id
   names(bws)
   bwcols=unname(tapply(idf$colorG,idf$grp,unique)[lgrps])
@@ -36,7 +37,7 @@ idf=idf[order(idf$grp,idf$Id,idf$tp),]
 
   bwpts=lapply(1:nrow(idf),function(i) 
     list(name=bws$Id[i],color=bws$col[i],type='scatter',
-         data=list(list(x=bws$x[i]-1,y=bws$y[i],grp=bws$x.orig[i],Id=bws$Id[i])),
+         data=list(list(x=bws$x[i]-1,y=bws$y[i],grp=bws$x.orig[i],Id=bws$Id[i],radius=10)),
          tooltipText=paste(bws$Id[i],':',bws$y.orig[i]),marker=list(symbol='circle')))
   b <- Highcharts$new()
   b$set(series = append(list(list(name =resp,data = bwdat,tooltip=list(enabled=FALSE))),bwpts))

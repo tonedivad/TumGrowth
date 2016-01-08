@@ -185,7 +185,7 @@ shinyUI(
         ),
         # Visualisation
         tabPanel("Line charts",
-                 bsCollapse(id = "collapseTC", open = "All",
+                 bsCollapse(id = "collapseTC", open = "All",multiple=T,
                             bsCollapsePanel("All",
                                             showOutput("plottc3a", "highcharts"),style = "info"),
                             bsCollapsePanel("Mean", showOutput("plottc3b", "highcharts"),style = "info")
@@ -193,7 +193,7 @@ shinyUI(
                  lastline()
         ),
         tabPanel("Longitudinal",
-                 bsCollapse(id = "collapseLG", open = "ANOVA",
+                 bsCollapse(id = "collapseLG", open = c("ANOVA","Pairwise comparisons"),multiple=T,
                             bsCollapsePanel("ANOVA", tableOutput("modeleffect"),style = "info"),
                             bsCollapsePanel("Pairwise comparisons", 
                                             uiOutput("radiolong"),
@@ -209,7 +209,7 @@ shinyUI(
                  lastline()
         ),
         tabPanel("Cross-sectionnal",
-                 bsCollapse(id = "collapseCS", open = "Distribution",
+                 bsCollapse(id = "collapseCS", open = c("Distribution","Pairwise comparisons"),multiple=T,
                             bsCollapsePanel("Distribution", showOutput("plotcs", "highcharts"),style = "info"),
                             bsCollapsePanel("Pairwise comparisons",uiOutput("grpcsvar"),
                                             DT::dataTableOutput("ctCS"), style = "info"),
@@ -220,8 +220,8 @@ shinyUI(
                  lastline()
         ),
         tabPanel("Survival",
-                 bsCollapse(id = "collapseKM", open = "Kaplan Meier",
-                            bsCollapsePanel("Kaplan meier", showOutput("plotkm", "highcharts"),style = "info"),
+                 bsCollapse(id = "collapseKM", open = c("Kaplan Meier","Cox regression"),multiple=T,
+                            bsCollapsePanel("Kaplan Meier", showOutput("plotkm", "highcharts"),style = "info"),
                             bsCollapsePanel("Cox regression",
                                             uiOutput("radiokm"),
                                             checkboxInput("radiokmFirth", label = 'Use Firth penalised Cox regression', value = FALSE),                                          

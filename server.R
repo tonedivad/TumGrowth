@@ -18,16 +18,18 @@ shinyServer(function(input, output, session) {
   ######## format the side bar
   fileData <- reactive({
     cat(input$sampleData)
-    if(input$dataInput==1) inFile<-paste("./",input$sampleData,sep="")
+    if(input$dataInput==1) inFile<-list(Ori=input$sampleData,Where=paste("./",input$sampleData,sep=""))
     if(input$dataInput==2){
       if (is.null(input$browse)) return(NULL)
-    inFile <- input$browse$datapath
+    inFile <- list(Ori=input$browse$name,Where=input$browse$datapath)
     }
+    inFile$Ori=gsub(".*/","",gsub("\\.[A-Za-z]+$","",inFile$Ori))
+    if(nchar(inFile$Ori)<2) inFile$Ori=paste("TG_",Sys.Date(),format(Sys.time(), "%H:%M"),sep="")
     return(inFile)
   })
   
  dat <- reactive({
-   ifile=fileData()
+   ifile=fileData()$Where
    if (!is.null(ifile)){
    cat("Lets load the data",ifile,"\n")
     shiny:::flushReact()
@@ -167,7 +169,23 @@ shinyServer(function(input, output, session) {
    df=df[df$Use,]
    
    valt=sort(unique(df$tp))
+   if(length(valt)==1){
+     valt=c(valt,valt+1)
+     args       <- list(inputId="slidercs", label=NULL, ticks=valt, value=0)
+     args$min   <- 1
+     args$step   <- 1
+     args$max   <- 1
+     ticks <- paste(args$ticks, collapse=',')
+     args$ticks <- TRUE
+     htmlslider  <- do.call('sliderInput', args)
+     htmlslider$children[[2]]$attribs[['data-values']] <- ticks
+     return(htmlslider)
+     
+   }
+
+   
    valt0=range(tapply(df$tp,df$Id,max,na.rm=T))
+   if(length(valt)==2) valt0=valt
    print(valt0)
    if(valt0[1]==valt0[2]) valt0[1]=max(valt[valt<valt0[1]])
    args       <- list(inputId="slidercs", label=NULL, ticks=valt, value=match(valt0,valt)-1)
@@ -266,8 +284,8 @@ model<-eventReactive(input$goButton,{
    objres<-csect()
    bfco=input$bfcocs
    if(bfco=='None') bfco=0 else bfco=as.numeric(gsub('p<','',bfco))
-   p2=compCS(objres,bfco=bfco,checkvar=input$radiocsvar,ref=input$grpcsvar)
-   return(p2)
+   p3=compCS(objres,bfco=bfco,checkvar=input$radiocsvar,ref=input$grpcsvar)
+   return(p3)
  })
  ############################################################################
 
@@ -411,7 +429,7 @@ output$csout<-renderPrint({
 })
 
 output$downloadCS <- downloadHandler(
-  filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-CS.',tolower(input$csplot),sep=""),
+  filename <- function() paste(fileData()$Ori,'-CS.',tolower(input$csplot),sep=""),
   content <- function(file) {
     if(input$csplot=='Svg'){
       require(svglite)
@@ -429,7 +447,7 @@ output$downloadCS <- downloadHandler(
 
 
 output$downloadKM <- downloadHandler(
-  filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-KM.',tolower(input$kmfplot),sep=""),
+  filename <- function() paste(fileData()$Ori,'-KM.',tolower(input$kmfplot),sep=""),
   content <- function(file) {
     if(input$kmfplot=='Svg'){
       require(svglite)
@@ -446,7 +464,7 @@ output$downloadKM <- downloadHandler(
 )
 
 output$downloadTC <- downloadHandler(
-  filename <- function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],'-TC.',tolower(input$tcfplot),sep=""),
+  filename <- function() paste(fileData()$Ori,'-TC.',tolower(input$tcfplot),sep=""),
   content <- function(file) {
     if(input$tcfplot=='Svg'){
       require(svglite)
@@ -466,21 +484,21 @@ output$downloadTC <- downloadHandler(
 ############################################################################
 
 output$exporttxtLG<-downloadHandler(
-  filename = function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],"-LG.txt",sep=""),
+  filename = function() paste(fileData()$Ori,"-LG.txt",sep=""),
   content = function(file) {
     what=sapply(modelpw()$exptxt,paste,collapse='\t')
     cat(what, file = file, sep = "\n")
   }
 )
 output$exporttxtCS<-downloadHandler(
-  filename = function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],"-CS.txt",sep=""),
+  filename = function() paste(fileData()$Ori,"-CS.txt",sep=""),
   content = function(file) {
     what=sapply(csect2()$exptxt,paste,collapse='\t')
-    cat(what, file = file, sep = "\n")
+     cat(what, file = file, sep = "\n")
   }
 )
 output$exporttxtKM<-downloadHandler(
-  filename = function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],"-KM.txt",sep=""),
+  filename = function() paste(fileData()$Ori,"-KM.txt",sep=""),
   content = function(file) {
         if(input$radiokm=='None') what=sapply(kmeier()$exptxt,paste,collapse='\t')
         if(input$radiokm!='None') what=sapply(kmeier2()$exptxt,paste,collapse='\t')
@@ -488,7 +506,7 @@ output$exporttxtKM<-downloadHandler(
   }
 )
 output$exporttxtDS<-downloadHandler(
-  filename = function() paste(rev(strsplit(fileData(),"[\\/]")[[1]])[1],"-data.tsv",sep=""),
+  filename = function() paste(fileData()$Ori,"-data.tsv",sep=""),
   content = function(file) {
     what=sapply(downloadFile(dat()),paste,collapse='\t')
     cat(what, file = file, sep = "\n")

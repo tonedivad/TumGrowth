@@ -2,8 +2,8 @@ name: TumGrowth
 account: tonedivad
 server: shinyapps.io
 appId: 63064
-bundleId: 340587
-url: https://tonedivad.shinyapps.io/TumGrowth
-when: 1451407082.02775
+bundleId: 345903
+url: https://tonedivad.shinyapps.io/TumGrowth/
+when: 1452265257.94673
 asMultiple: FALSE
 asStatic: FALSE
