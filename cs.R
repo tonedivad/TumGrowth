@@ -21,17 +21,35 @@ idf=idf[order(idf$grp,idf$Id,idf$tp),]
   if(newrange[1]<newrange[2]) ylab=paste(ifelse(usemax,"Max. r","R"),"esponse in time range: ",newrange[1],"-",newrange[2],sep="")
   if(newrange[1]==newrange[2]) ylab=paste("Response at time=",newrange[1],sep="")
   
+  #color=unname(tapply(df$colorG,df$grp,unique)[lgrps])
+  bws=beeswarm(Resp~grp,idf,do.plot=F,pwcol=idf$colorG,cex=1,spacing=10)
+  bws$Id=idf$Id
+  names(bws)
+  bwcols=unname(tapply(idf$colorG,idf$grp,unique)[lgrps])
   
   idf$Resp=round(idf$Resp,2)
   bwstats = setNames(as.data.frame(boxplot(Resp ~ grp, data = idf, plot = F)$stats), nm = NULL)
+  bwstats=boxplot(Resp ~ grp, data = idf, plot = F)$stats
+  bwdat=lapply(1:ncol(bwstats),function(i)
+    list(x=i-1,low=bwstats[1,i],q1=bwstats[2,i],median=bwstats[3,i],q3=bwstats[4,i],high=bwstats[5,i],
+         color=bwcols[i],fillColor= '#F0F0E0',lineWidth= 2,medianColor=bwcols[i],medianWidth=4,fillColor= "#F0F0F0"))
+
+  bwpts=lapply(1:nrow(idf),function(i) 
+    list(name=bws$Id[i],color=bws$col[i],type='scatter',
+         data=list(list(x=bws$x[i]-1,y=bws$y[i],grp=bws$x.orig[i],Id=bws$Id[i])),
+         tooltipText=paste(bws$Id[i],':',bws$y.orig[i]),marker=list(symbol='circle')))
   b <- Highcharts$new()
-  b$set(series = list(list(name = 'Residuals',data = bwstats)))
+  b$set(series = append(list(list(name =resp,data = bwdat,tooltip=list(enabled=FALSE))),bwpts))
   b$xAxis(labels=list(rotation = -90),categories = lgrps,title = list(text = 'Groups'))
   b$xAxis(categories = paste(lgrps," (",table(idf$grp)[lgrps],")",sep=""),title = list(text = 'Groups'))
-  b$legend(enabled = F)
+   b$legend(enabled = F)
+   # b$tooltip( formatter = "#! function() { return this.point.grp + ': ' + this.point.y0 + ' (' +this.point.Id + ')' ; } !#")
+   b$tooltip( shared=FALSE,
+              formatter = "#! function() { return this.series.options.tooltipText ; } !#")
+   b$plotOptions(followPointer=F)
   b$yAxis(title = list(text = ylab), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
   b$chart(type = 'boxplot')
-  
+  b
   #####
   v=idf$Id
   if(length(unique(newrange))>1) v=paste(idf$Id," (",idf$tp,")",sep="")
@@ -52,7 +70,7 @@ idf=idf[order(idf$grp,idf$Id,idf$tp),]
   return(list(plot=b,df=idf,tp=newrange,sumids=sumids,exptxt=exptxt,resp=resp,lgrps=lgrps))
 }
 
-###############
+##########################################################################################
 compCS<-function(objres,bfco=0.1,checkvar=TRUE,ref='All'){
   
   idf=objres$df
