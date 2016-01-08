@@ -118,7 +118,7 @@ compCS<-function(objres,bfco=0.1,checkvar=TRUE,ref='All'){
     lrspva=sprintf('%s',myf(p.adjust(lrs,"holm")))
     
     cttab=cbind(Group=gsub(" - .*","",rownames(ctmat)),Comp=gsub(".* - ","",rownames(ctmat)),
-                Contrasts=hrs,Pvalue=hrpv,PvalueAdj=hrpva,WilPVal=lrspv,WilPvalAdj=lrspv)
+                Contrasts=hrs,Pvalue=hrpv,PvalueAdj=hrpva,WilPVal=lrspv,WilPvalAdj=lrspva)
     #print("OKK2")
     
     exptxt=c(exptxt,list('***Stats***'),list(colnames(cttab)))
