@@ -16,7 +16,7 @@ textInput3<-function (inputId, label, value = "",...)
 
 lastline<-function() 
   h6("This application was created at the ", a("Kroemer lab", href="http://www.kroemerlab.com/"), 
-     ". Please send bugs and feature requests to me.")
+     ". Source code available on", a("Github.", href="https://github.com/tonedivad/TumGrowth"))
 
 
 # h5, h6 {

@@ -366,7 +366,7 @@ shinyServer(function(input, output, session) {
     ref=ref[ref%in%levels(objres$data$Grp)]
     if(length(ref)==0) ref=levels(objres$data$Grp)
     pwt=objres$pairTab
-    print(pwt)
+ #   print(pwt)
     if(length(ref)>0)  pwt=pwt[which(pwt[,1]%in%ref | pwt[,2]%in%ref),]
     if(length(ref)==1){
       if(any(pwt[,1]%in%ref)){

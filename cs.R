@@ -132,7 +132,7 @@ compCS<-function(objres,bfco=0.1,checkvar=TRUE){
   jtab$Wil=suppressWarnings(sapply(strsplit(rownames(ct)," - "),function(x) 
     wilcox.test(Resp~factor(Grp),idf2[idf2$Grp%in%x & !idf2$out,])$p.value))
   
-  print(jtab)
+ # print(jtab)
   tab=nlme:::summary.gls(mod2)$tT
   rownames(tab)=gsub("^Grp=","",rownames(tab))
   tab=data.frame(tab)
@@ -142,7 +142,7 @@ compCS<-function(objres,bfco=0.1,checkvar=TRUE){
   weightCoef=NULL
   mstruct=coef(mod2$modelStruct,unconstrained=FALSE)
   if(!is.null(mstruct))
-    if(grepl("^varStruct",names(mstruct))){
+    if(any(grepl("^varStruct",names(mstruct)))){
     weightCoef=mstruct[grep("^varStruct",names(mstruct))]
     names(weightCoef)=gsub("^varStruct\\.","",names(weightCoef))
     weightCoef=weightCoef[levels(idf2$Grp)]
