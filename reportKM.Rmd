@@ -1,0 +1,84 @@
+---
+title: '`r paste("Survival analysis from ",ifile)`'
+output:
+  html_document:
+    theme: default
+    toc: yes
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+date: '`r paste("Compiled on ", format(Sys.time(), "%a %b %d %X %Y"))`'
+---
+
+Overview
+-----------------------------------
+
+Response: **`r objres$Resp`**
+
+Analysis type: **`r objres$Typ`**
+
+Parameters: **`r objres$Par`**
+
+```{r table0, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+require(pander)
+    ndf=objres$Df
+    v=paste(ndf$Id," (",ndf$Time,c("","+")[ndf$Event+1],")",sep="");names(v)=NULL
+    lso=order(ndf$Time,ndf$Event)
+    v=tapply(v[lso],ndf$Grp[lso],c)
+    nv=tapply(v[lso],ndf$Grp[lso],length)
+    nev=tapply(ndf$Event[lso],ndf$Grp[lso],sum)
+    sumIds=data.frame(cbind(Group=names(v),"N"=nv,"Event"=nev,"Censoring"=unlist(sapply(v,paste,collapse=" "))))
+    rownames(sumIds)=NULL
+panderOptions('table.split.table', Inf)
+    pander(sumIds)
+```
+Num. of animals: **`r length(lso)`**, num. of events: **`r sum(ndf$Event)`**
+
+
+```{r plot1, fig.height=5,fig.width=8,echo=FALSE}
+par(mar = c(4, 4, 1, 1))
+lwd=ifelse(exists(input$kmlwd),as.numeric(input$kmlwd),2)
+cexpt=ifelse(exists(input$kmcexpt),as.numeric(input$kmcexpt),1.5)
+exportKM(p1,dogrps=FALSE,lwd=lwd,cexpt=cexpt)
+```
+
+\clearpage
+
+Stats
+-----------------------------------
+
+**ANOVA**
+```{r table2, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+if(!is.null(modKM)) pander(modKM$modTab)
+```
+
+**Hazard ratios**
+```{r table3, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+if(!is.null(modKM)) pander(modKM$hrTab)
+```
+
+\clearpage
+
+Modelling
+-----------------------------------
+
+**Cox regression**
+```{r model, results='markdown',echo=FALSE}
+if(!is.null(modKM)) modKM$model
+```
+
+**All possible zazard ratios**
+
+
+\clearpage
+
+Data
+-----------------------------------
+```{r table1, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+require(pander)
+panderOptions('table.split.table', Inf)
+dat=objres[[1]]
+rownames(dat)=NULL
+pander(dat)
+```
+

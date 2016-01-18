@@ -1,47 +1,85 @@
-downloadFile<-function(df){
+verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE,sumids=FALSE){
   
-  dat=df$data
-  ltps=unique(dat$tp)
-  lmids=unlist(tapply(dat$Id,dat$grp,unique))
-  luse=unlist(tapply(dat$Use,dat$grp,unique))
-  lmids2=paste(rep(lmids,each=length(ltps)),ltps,sep=";;")
-  dat$Ids2=paste(dat$Id,dat$tp,sep=";;")
-  dat=dat[match(lmids2,dat$Ids2),]
-  dat$Ids2=lmids2
-  dat$Id=rep(lmids,each=length(ltps))
-  dat$tp=rep(ltps,length(lmids))
+  df$IdTp=paste(df$tp,df$Id,sep=";;")
+  df$IdoTp=paste(df$tp,df$Idold,sep=";;")
   
-  l=c(df$Resp[-grep("\\.log$",df$Resp)],df$Resp[grep("\\.log$",df$Resp)])
-  m=do.call("cbind",lapply(l,function(x){
-    tt=do.call("cbind",tapply(dat[,x],dat$tp,round,4))
-    colnames(tt)=paste(x,colnames(tt),sep=";;")
-    tt
-  }))
-  m=m[,colSums(is.na(m))<nrow(m)]
-  Mid=dat$Id[dat$tp==dat$tp[1]]
-  Use=c('','x')[dat$Use[dat$tp==dat$tp[1]]+1]
-  Grp=tapply(as.character(dat$grp),dat$Id,function(x) na.omit(unique(x)))[Mid]
-  tow=cbind(Use,Grp,Mid,m)
-  add=do.call("cbind",strsplit(colnames(m),";;"))
-  tow=rbind(c("Use","Grp","Id",add[2,]),
-            c("","","",add[1,]),tow)
+  ####################################
+  ## combine repeated meas at the same Tp
+  if(any(table(df$IdTp)>1)){
+    ldups=names(which(table(df$IdTp)>1))
+    #     cat("Duplicated time points:",ldups,"\n")
+    newx=tapply(df$X,df$IdTp,median,na.rm=T)
+    df=df[match(names(newx),df$IdTp),]
+    df$X=newx[df$IdTp]
+  }
+  rownames(df)=df$IdTp
+  df=df[order(df$Id,df$tp),]
   
-  exptxt=list()
-  for(i in 1:nrow(tow)) exptxt=c(exptxt,list(unname(tow[i,])))
-  # print(exptxt)
-  dimnames(tow)=list(NULL,NULL)
-  return(exptxt)
+  ####################################
+  ## Exclude trailing zeros/NAs
+  if(trimzer){
+    l2rm=NULL
+    ## only use mices that do not make it
+    lmids2chk=unique(df$Id)
+    lmids2chk=lmids2chk[lmids2chk%in%dfm$Id[!dfm$Surv]]
+    for(ipid in lmids2chk){
+      idf=df[df$Id==ipid,]
+      idf=idf[order(-idf$tp),]
+      while((is.na(idf[1,1]) | idf[1,1]==0) & nrow(idf)>0){
+        l2rm=c(l2rm,rownames(idf)[1])
+        idf=idf[-1,]
+      }
+    }
+    if(length(l2rm)>0) df[l2rm,1]=NA
+  }
+  
+  ####################################
+  ## Sum at same Id/Tp to revisit
+#  if(sumids & max(rowSums(table(df$IdoTp,df$Grp)>0))==1){
+#     df=data.frame(X=tapply(df$X,df$IdoTp,function(x) ifelse(all(is.na(x)),NA,sum(x,na.rm=T))),
+#                   Id=tapply(df$Idold,df$IdoTp,unique),
+#                   tp=tapply(df$tp,df$IdoTp,unique),Grp=tapply(df$Grp,df$IdoTp,unique),
+#                   stringsAsFactors = F)
+#     df=df[order(df$Grp,df$Id,df$tp),]
+#     names(grps)=names(use)=uidsold
+#   }
+  
+  ####################################
+  ## Remove same values from the end
+  if(trim){
+    l2rm=NULL
+    lmids2chk=unique(df$Id)
+    lmids2chk=lmids2chk[lmids2chk%in%dfm$Id[!dfm$Surv]]
+    for(ipid in lmids2chk){
+      idf=df[df$Id==ipid,]
+      idf=idf[order(-idf$tp),]
+      if(all(is.na(idf$X))) next
+      while(is.na(idf$X[1]) & nrow(idf)>0) idf=idf[-1,]
+      if(!exclzer) l2excl=which(diff(idf$X)==0 & idf[-nrow(idf),1]>0)
+      if(exclzer) l2excl=which(diff(idf$X)==0)
+      if(length(l2excl)>0) l2excl=l2excl[l2excl==(1:length(l2excl))]
+      if(length(l2excl)>0) l2rm=c(l2rm,rownames(idf)[l2excl])
+    }
+    if(length(l2rm)>0) df[l2rm,]$X=NA
+  }
+  return(df)
+
 }
 
 #############################################################################################
-loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=FALSE,trim=TRUE,trimzer=TRUE,exclzer=FALSE,sumids=FALSE){
+loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TRUE,exclzer=FALSE,sumids=FALSE){
 
-  tmp=strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw")),"\t")
+  tmp=suppressMessages(strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw",quiet=TRUE)),"\t"))
+  
+  if(!is.numeric(ndigit) | is.na(ndigit)) ndigit=4
+  ndigit=max(1,ndigit)
   
   whichtps=grep("^[0-9]+$",tmp[[1]])
   whichgrp=grep("^[group]+$",tolower(tmp[[1]]))[1]
   whichid=grep("^[MIDmid]+$",tmp[[1]])
   if(length(whichid)>1) whichid=whichid[1]
+  whichsurv=grep("^[survSurv]+$",tmp[[1]])
+  if(length(whichsurv)>1) whichsurv=whichsurv[1]
   whichuse=grep("^[USEuse]{3}$",tmp[[1]])
   if(length(whichuse)>1) whichuse=whichuse[1]
   
@@ -51,27 +89,45 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=FALSE,trim=TRUE,trimzer
     for(k in unique(ids)) ids[ids==k]=paste(ids[ids==k],1:sum(ids==k),sep="")
   } else ids=sapply(tmp,function(x) gsub(" ","",x[whichid]))
 
-  use=rep(TRUE,length(grps))
-  if(length(whichuse)==1) use=sapply(tmp,function(x) x[whichuse])!=""
+  isuse=rep(TRUE,length(grps))
+  if(length(whichuse)==1) isuse=sapply(tmp,function(x) x[whichuse])!=""
+  
+  issurv=rep(FALSE,length(grps))
+  if(length(whichsurv)==1){
+    issurv[sapply(tmp,function(x) x[whichsurv])!=""]=TRUE
+  }
+  
   lmices=which(ids!="" & grps!="")
   lmices=lmices[lmices>2]
   
   uids=uidsold=gsub(" ","",ids[lmices])
-  #if(!sumids & any(table(uids)>1)){
-    while(any(table(uids)>1)){
-      iredu=names(which(table(uids)>1))[1]
-      uids[uids==iredu]=paste(uids[uids==iredu],1:sum(uids==iredu),sep=".")
-    }
-  #}
-  use=use[lmices];grps=grps[lmices]
-  names(grps)=names(use)=uids
+  while(any(table(uids)>1)){
+    iredu=names(which(table(uids)>1))[1]
+    uids[uids==iredu]=paste(uids[uids==iredu],1:sum(uids==iredu),sep=".")
+  }
   
+  isuse=isuse[lmices]
+  issurv=issurv[lmices]
+  grps=grps[lmices]
+  luniqgrps=unique(grps)
+  names(grps)=names(issurv)=names(isuse)=uids
+  ####################################################################################
+  ## mice data frame
+  ## double check if discondordant infos???
+  dfm=data.frame(Id=tapply(uids,uids,unique),Grp=tapply(grps,uids,unique),
+                 Use=tapply(isuse,uids,function(x) unique(x)[1]),
+                 Surv=tapply(issurv,uids,function(x) unique(x)[1]),
+                 stringsAsFactors=FALSE)
+  #print(dfm)
+  
+  ####################################################################################
+  ## get the data
   if(length(whichtps)>1)  mat=t(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))))
   if(length(whichtps)==1)  mat=matrix(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))),ncol=1)
   
   lmeas=tmp[[2]][whichtps]=gsub(" ","",tmp[[2]][whichtps])
   umeas=unique(lmeas)
-  ## here chk .log
+  ## is there any .log??
   if(length(grep("\\.log$",umeas))>0){
     llog=grep("\\.log$",umeas)
     llog=llog[sapply(llog,function(x) gsub("\\.log$","",umeas[x])%in%umeas)]
@@ -81,79 +137,21 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=FALSE,trim=TRUE,trimzer
   lmeas=tmp[[2]][whichtps]
   ltps=as.numeric(tmp[[1]][whichtps])
   
-  
+  ####################################################################################
+  imeas=unique(lmeas)[1]
   allmeas=list()
   for(imeas in unique(lmeas)){
     l=which(lmeas==imeas)
     df=data.frame(X=round(as.vector(mat[,l]),ndigit),Id=rep(uids,length(l)),tp=rep(ltps[l],each=nrow(mat)),
                   Grp=rep(grps,length(l)),Idold=rep(uidsold,length(l)),stringsAsFactors = F)
-    df$IdTp=paste(df$tp,df$Id,sep=";;")
-    df$IdoTp=paste(df$tp,df$Idold,sep=";;")
-    if(any(table(df$IdTp)>1)){
-      ldups=names(which(table(df$IdTp)>1))
-      cat("Duplicated time points:",ldups,"\n")
-      newx=tapply(df$X,df$IdTp,median,na.rm=T)
-      df=df[match(names(newx),df$IdTp),]
-      df$X=newx[df$IdTp]
-    }
-    rownames(df)=df$IdTp
-    df=df[order(df$Grp,df$Id,df$tp),]
-    
-    ############
-    ## Exclude trailing zeros/NAs
-    if(trimzer){
-      l2rm=NULL
-      for(ipid in unique(df$Id)){
-        idf=df[df$Id==ipid,]
-        idf=idf[order(-idf$tp),]
-        while((is.na(idf[1,1]) | idf[1,1]==0) & nrow(idf)>0){
-          l2rm=c(l2rm,rownames(idf)[1])
-          idf=idf[-1,]
-        }
-      }
-      if(length(l2rm)>0)    df[l2rm,1]=NA
-      
-    }
-    
-    ############
-    ## Sum at same Id/Tp
-    if(sumids & max(rowSums(table(df$Idold,df$Grp)>0))==1){
-      df=data.frame(X=tapply(df$X,df$IdoTp,function(x) ifelse(all(is.na(x)),NA,sum(x,na.rm=T))),
-                    Id=tapply(df$Idold,df$IdoTp,unique),tp=tapply(df$tp,df$IdoTp,unique),Grp=tapply(df$Grp,df$IdoTp,unique),
-                    stringsAsFactors = F)
-    df=df[order(df$Grp,df$Id,df$tp),]
-    names(grps)=names(use)=uidsold
-    }
-    
-    df=df[,1:4]
-    
-    ############
-    ## Remove same values from the end
-    if(trim){
-    l2rm=NULL
-    for(ipid in unique(df$Id)){
-      idf=df[df$Id==ipid,]
-      idf=idf[order(-idf$tp),]
-      if(all(is.na(idf[,1]))) next
-      while(is.na(idf[1,1]) & nrow(idf)>0) idf=idf[-1,]
-      
-      if(!exclzer) l2excl=which(diff(idf[,1])==0 & idf[-nrow(idf),1]>0)
-      if(exclzer) l2excl=which(diff(idf[,1])==0)
-      if(length(l2excl)>0) l2excl=l2excl[l2excl==(1:length(l2excl))]
- #     if(exclzer & any(idf[,1]==0,na.rm = TRUE)) l2excl=c(l2excl,which(idf[,1]<=0)) 
-      if(length(l2excl)>0) l2rm=c(l2rm,rownames(idf)[l2excl])
-    }
-    if(length(l2rm)>0){
-      cat("Excl in",imeas,":",l2rm,"\n",sep=" ")
-      df[l2rm,1]=NA
-    }
-  }
-    
-    names(df)[1]=imeas
-    allmeas[[imeas]]=df
-  }
+    df2=verifOne(df,dfm,trim,trimzer,exclzer,sumids)
+    names(df2)[1]=imeas
+    allmeas[[imeas]]=df2
+   }
+  #print(dfm)
   
-
+  ###
+  # Cmb all
   umeas=unique(unlist(lapply(allmeas,rownames)))
   
   df=data.frame(sapply(allmeas,function(x) x[match(umeas,rownames(x)),1]),stringsAsFactors = F)
@@ -161,30 +159,32 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=FALSE,trim=TRUE,trimzer
   rownames(df)=umeas
   df=df[rowSums(is.na(df[,unique(lmeas),drop=F]))<length(unique(lmeas)),,drop=F]
   df=df[which(!apply(is.na(df),1,all)),,drop=F]
-  df$tp=as.numeric(gsub(";;.*","",rownames(df)))
+  df$Tp=as.numeric(gsub(";;.*","",rownames(df)))
   df$Id=gsub("^[0-9]+;;","",rownames(df))
-  df$Use=use[df$Id]
-  df$grp=factor(grps[df$Id],levels = unique(grps))
-  rownames(df)=1:nrow(df)
-  df=df[order(df$grp,!df$Use,df$Id,df$tp),]
   
   lResp=unique(lmeas)
   if(exclzer) for(i in lResp) df[which(df[,i]==0),i]=NA
   df=df[!rowSums(is.na(df[,lResp,drop=FALSE]))==length(lResp),]
+  
+  dfm=dfm[dfm$Id%in%df$Id,]
+  dfm$Grp=factor(dfm$Grp,levels=luniqgrps[dfm$Grp%in%luniqgrps])
+  dfm=dfm[order(dfm$Grp,dfm$Id),]
+  
+  df=df[order(factor(df$Id,levels=dfm$Id),df$Tp),]
   rownames(df)=1:nrow(df)
   
   
- if(setday0){
-   ftp=tapply(1:nrow(df),df$Id,function(x) sapply(lResp,function(y) min(df$tp[x[min(which(df[x,y]>0))]],na.rm=T)))
-  for(i in names(ftp)[!is.infinite(ftp)]){
-    if(any(df$Id==i & df$tp<ftp[i])) for(k in lResp) df[which(df$Id==i & df$tp<ftp[i]),k]=NA
-    df$tp[df$Id==i]=df$tp[df$Id==i]-ftp[i]+1
+  if(!is.na(setday0)) if(setday0>=0) {
+    ftp=tapply(1:nrow(df),df$Id,function(x) min(sapply(lResp,function(y) min(df$Tp[x[min(which(df[x,y]>0))]],na.rm=T))))
+    for(i in names(ftp)[!is.infinite(ftp)]){
+      if(any(df$Id==i & df$Tp<ftp[i])) for(k in lResp) df[which(df$Id==i & df$Tp<ftp[i]),k]=NA
+      df$Tp[df$Id==i]=df$Tp[df$Id==i]-ftp[i]+setday0
+    }
+    df=df[which(df$Tp>=0),]
   }
-  df=df[which(df$tp>=0),]
- }
   
   for(i in lResp){
-    v=round(log(df[,i]),ndigit)
+    v=round(log(df[,i]),max(3,ndigit-1))
     if(!imputezer) v[is.infinite(v)]=NA
     if(imputezer) v[is.infinite(v)]=log(min(df[df[,i]>0,i],na.rm=T)/2)
     if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.2)){
@@ -193,18 +193,52 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=FALSE,trim=TRUE,trimzer
     }
   }
   df=df[,c(which(names(df)%in%lResp),which(!names(df)%in%lResp))]
+  rownames(df)=paste(df$Id,df$Tp,sep='.')
   
-  
-  df$colorI=getCols(df$grp,as.character(df$Id))[as.character(df$Id)]
-  df$colorG=getCols(df$grp)[as.character(df$grp)]
-  df$colorL=getCols(df$grp,what=1)[as.character(df$grp)]
-  rownames(df)=paste(df$Id,df$tp,sep='.')
-  
-  l2excl=unique(df$Id[!df$Use])
-  print(l2excl)
-  
-  list(data=df,Grp=levels(df$grp),Resp=lResp,Excl=l2excl)
+#   dfm$colorI=getCols(dfm$Grp,as.character(dfm$Id))[as.character(dfm$Id)]
+#   dfm$colorG=getCols(dfm$Grp)[as.character(dfm$Grp)]
+#   dfm$colorL=getCols(dfm$Grp,what=1)[as.character(dfm$Grp)]
+
+  list(data=df,dataM=dfm,Resp=lResp,Excl=unique(dfm$Id[!dfm$Use]))
 }
 ########################################################################################################################
 ########################################################################################################################
+
+#############################################################################################
+downloadFile<-function(cdat,ndigit=4){
+  
+  dat=cdat$data
+  datm=cdat$dataM
+  ltps=unique(dat$Tp)
+  lmids=unlist(tapply(datm$Id,datm$Grp,unique))
+  luse=unlist(tapply(datm$Use,datm$Grp,unique))
+  lmids2=paste(rep(lmids,each=length(ltps)),ltps,sep=";;")
+  dat$Ids2=paste(dat$Id,dat$Tp,sep=";;")
+  dat=dat[match(lmids2,dat$Ids2),]
+  dat$Ids2=lmids2
+  dat$Id=rep(lmids,each=length(ltps))
+  dat$Tp=rep(ltps,length(lmids))
+  
+  l=c(cdat$Resp[-grep("\\.log$",cdat$Resp)],cdat$Resp[grep("\\.log$",cdat$Resp)])
+  m=do.call("cbind",lapply(l,function(x){
+    tt=do.call("cbind",tapply(dat[,x],dat$Tp,round,max(3,ndigit-1)))
+    colnames(tt)=paste(x,colnames(tt),sep=";;")
+    tt
+  }))
+  m=m[,colSums(is.na(m))<nrow(m)]
+  Mid=dat$Id[dat$Tp==dat$Tp[1]]
+  Use=c('','x')[datm[Mid,]$Use+1]
+  Surv=c('','x')[datm[Mid,]$Surv+1]
+  Grp=as.character(datm[Mid,]$Grp)
+  tow=cbind(Use,Grp,Mid,Surv,m)
+  add=do.call("cbind",strsplit(colnames(m),";;"))
+  tow=rbind(c("Use","Grp","Id","Surv",add[2,]),
+            c("","","","",add[1,]),tow)
+  
+  exptxt=list()
+  for(i in 1:nrow(tow)) exptxt=c(exptxt,list(unname(tow[i,])))
+  # print(exptxt)
+  dimnames(tow)=list(NULL,NULL)
+  return(exptxt)
+}
 

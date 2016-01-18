@@ -1,0 +1,145 @@
+---
+title: '`r paste("Longitudinal analysis from ",ifile)`'
+output:
+  html_document:
+    theme: default
+    toc: yes
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+date: '`r paste("Compiled on ", format(Sys.time(), "%a %b %d %X %Y"))`'
+---
+
+Overview
+-----------------------------------
+
+Response: **`r objres$Resp`**
+
+Design for modelling:
+```{r table1, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+require(pander)
+idat=objres$data
+tab=data.frame(sapply(unique(idat$Tp),function(x) table(idat$Grp[idat$Tp==x])))
+names(tab)=unique(objres$data$Tp)
+panderOptions('table.split.table', Inf)
+pander(tab)
+```
+
+```{r outl, message=FALSE,echo=FALSE}
+louts='no outliers'
+if(any(objres$data$out)){
+  cdat=objres$data[objres$data$out,]
+louts=unname(tapply(1:nrow(cdat),factor(cdat$Id),function(x) 
+  paste("Id=",cdat$Id[x[1]]," (",cdat$Grp[x[1]],"): ",paste(cdat$Tp[x],collapse=","),sep="")))
+}
+anim=sum(!objres$data$out)
+```
+      
+Outliers: **`r louts`**
+
+Num. of animals: **`r anim`**
+
+Stats
+-----------------------------------
+
+**Type II ANOVA**
+```{r table2, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+pander(objres$AnovaTab)
+```
+
+**Selected pairwise comparisons**
+```{r table3, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+pander(formatpw)
+```
+
+Model
+-----------------------------------
+```{r model, results='markdown',echo=FALSE}
+objres$mod
+```
+
+**All pairwise comparisons**
+```{r table4, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+pander(objres$pairTab)
+```
+
+\clearpage
+
+QQ-plot
+-----------------------------------
+
+```{r plot, fig.height=4,echo=FALSE}
+par(mar = c(4, 4, 1, 1))
+
+    tmpqqp=plotdata$data[,c("resid","qt","x"  ,"Grp","Id","color")]
+    names(tmpqqp)[1:3]=c("x","y","Tp")
+    ab=c(range(plotdata$limxqq),range(plotdata$limxqq))
+    plot(range(plotdata$limxqq),range(plotdata$limxqq),cex=0,
+    xlab="Pearson residuals",xlim=range(plotdata$limxqq),
+    ylab="Quantile",ylim=range(plotdata$limxqq),axes=F)
+    axis(1,at=plotdata$limxqq);axis(2,at=plotdata$limxqq,las=2)
+    abline(0,1)
+    points(tmpqqp$x,tmpqqp$y,col=tmpqqp$color,pch=16)
+```
+
+
+Fitted
+-----------------------------------
+
+```{r plot1, fig.height=4,echo=FALSE}
+par(mar = c(4, 4, 1, 1))
+    tmpdata=plotdata$data
+    tmppred=plotdata$pred
+    tmppred=tmppred[order(tmppred$Grp,tmppred$x),]
+         plot(range(plotdata$limtp),range(plotdata$limyfit),cex=0,
+    xlab="Time",xlim=range(plotdata$limtp),
+    ylab="Fitted",ylim=range(plotdata$limyfit),axes=F)
+    axis(1,at=plotdata$limtp);axis(2,at=plotdata$limyfit,las=2)
+    re=tapply(1:nrow(tmpdata),tmpdata$Id,function(x)
+      lines(tmpdata$x[x],tmpdata$y[x],col=tmpdata$color[x][1]))
+    
+    re=tapply(1:nrow(tmppred),tmppred$Grp,function(x){
+      xl=tmppred$x[x];yl=tmppred$ymin[x];yh=tmppred$ymax[x]
+      polygon(c(xl,rev(xl),xl[1]),c(yl,rev(yh),yl[1]),border=NA,
+              col=adjustcolor(tmppred$color[x][1],alpha.f=0.3))})
+    
+    re=tapply(1:nrow(tmppred),tmppred$Grp,function(x)
+      lines(tmppred$x[x],tmppred$y[x],col=tmppred$color[x][1],lwd=3,typ="b"))
+    legend("topleft",levels(tmppred$Grp),col=tapply(tmppred$color,tmppred$Grp,unique),
+           pt.cex=1.2,pch=15,bty="n",ncol=1)
+```
+
+
+Residuals vs grp
+-----------------------------------
+
+```{r plot2, fig.height=4,fig.width=6,echo=FALSE}
+par(mar = c(4, 4, 1, 1))
+     tmpbxp=plotdata$data[,c("Id","resid","Grp","color")]
+    names(tmpbxp)[2]="x"
+  re=boxplot(x~Id,tmpbxp,axes=F,cex=0,ylab="Pearson residuals",ylim=range(plotdata$limxqq))
+  abline(h=0)
+   axis(2,at=plotdata$limxqq,las=2)
+   for(i in 1:length(re$n)) axis(1,at=i,re$name[i],las=2,tick=F,ifelse(length(re$names)>5,0.6,1))
+  beeswarm(x~Id,tmpbxp,add=T,pwcol=tmpbxp$color,pch=16)
+```
+
+
+Residuals vs fit
+-----------------------------------
+
+```{r plot3, fig.height=4,echo=FALSE}
+par(mar = c(4, 4, 1, 1))
+  tmpresf=plotdata$data[,c("resid","fit" ,"x" ,"Grp","Id","color")]
+  names(tmpresf)[1:3]=c("y","x","Tp")
+  
+     plot(range(plotdata$limxqq),range(plotdata$limxqq),cex=0,
+    xlab="Fitted",xlim=range(plotdata$limyfit0),
+    ylab="Pearson residuals",ylim=range(plotdata$limxqq),axes=F)
+          abline(h=0)
+
+    axis(1,at=plotdata$limyfit0);axis(2,at=plotdata$limxqq,las=2)
+    points(tmpresf$x,tmpresf$y,col=tmpresf$color,pch=16)
+```
+
+

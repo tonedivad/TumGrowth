@@ -3,18 +3,16 @@ library(rCharts)
 library(shinythemes)
 library(shinyBS)
 
+
+
+
 textInput3<-function (inputId, label, value = "",...) 
 {
   div(style="display:inline-block",
-      tags$label(label, `for` = inputId), 
+      tags$label(label, `for` = inputId,style="font-weight:normal"), 
       tags$input(id = inputId, type = "text", value = value,...))
 }
 
-textInput2<-function (inputId, label, value = "",...) 
-{
-  tagList(tags$label(label, `for` = inputId), 
-          tags$input(id = inputId,type = "text", value = value,...))
-}
 
 lastline<-function() 
   h6("This application was created at the ", a("Kroemer lab", href="http://www.kroemerlab.com/"), 
@@ -51,24 +49,49 @@ shinyUI(
     sidebarPanel(
       #################
       conditionalPanel(condition="input.tabs1=='Data upload'",
-                       #      h4("Enter data"),
-                       radioButtons("dataInput", "Enter data", list("Load sample data"=1,"Upload file"=2)),
+                       div(align = "center", h4("Data input")),
+                       radioButtons("dataInput", NULL, list("Load sample data"=1,"Upload file"=2)),
                        conditionalPanel(condition="input.dataInput=='1'",
-                                        radioButtons("sampleData", "Load sample data", 
+                                        radioButtons("sampleData", "Example data", 
                                                      list("Longitudinal test"="Test1","Kaplan-Meier test"="Test2","Cross-sectional test"="TestCRM"))
                        ),
                        conditionalPanel(condition="input.dataInput=='2'",
                                         fileInput('browse', 'File to upload (tab separated/no UTF16)', multiple = FALSE)
                                         #radioButtons("loadtyp", NULL,list("Long"="long","Wide"="wide"),inline=TRUE)
                        ),
-                     #  textInput3(inputId="ndigit", label="Rounding", value = '4', class="input-small"),
-                     checkboxInput("sumids", label = '1: sum duplicated ids', value = FALSE),
-                     checkboxInput("trimzer", label = '2: remove zeros from the end', value = FALSE),
-                     checkboxInput("trim", label = '3: trim same values from the end', value = TRUE),
-                     checkboxInput("setday0", label = '4: set day 1 at first detected', value = FALSE),
-                     checkboxInput("exclzer", label = '5: exclude any other zeros', value = FALSE),
-                     checkboxInput("imputezer", label = '6: replace zeros for log trans.', value = TRUE),
-                       div(align = "center", downloadButton("exporttxtDS", "Download data"))
+                       #  textInput3(inputId="ndigit", label="Rounding", value = '4', class="input-small"),
+                       tags$head(tags$style(type="text/css", "#browse {font-weight: normal}")),
+                       div(align = "center", h4("Parsing parameters")),
+                       textInput3(inputId="ndigits", label="0: num of digits", value = 4, class="input-small"),
+                       checkboxInput("sumids", label = '1: sum duplicated ids', value = FALSE),
+                       checkboxInput("trimzer", label = '2: remove zeros from the end', value = FALSE),
+                       checkboxInput("trim", label = '3: trim same values from the end', value = TRUE),
+                       #    checkboxInput("setday0", label = '4: set day 1 at first detected', value = FALSE),
+                       textInput3(inputId="setday0", label="4: set first detected at day", value = '', class="input-small"),
+                       checkboxInput("exclzer", label = '5: exclude any other zeros', value = FALSE),
+                       checkboxInput("imputezer", label = '6: replace zeros for log trans.', value = TRUE),
+                       div(align = "center", h4("Graphics settings")),
+                       checkboxInput('showPanel1', 'Custom colors', FALSE),
+                       conditionalPanel(condition = 'input.showPanel1',
+                                        div(align = "center", wellPanel(uiOutput("groupscols")),
+                                            actionButton("updateCols", "Update colors",width='120px'))
+                       ),
+#                        checkboxInput('showPanel2', 'SVG export (not active!)', FALSE),
+#                        conditionalPanel(condition = 'input.showPanel2',
+#                                         div(align = "center", wellPanel(
+#                                           textInput3(inputId="svgwidth", label="Width", value = 5, class="input-small"),
+#                                           textInput3(inputId="svgheight", label="Height", value = 4, class="input-small"),
+#                                           textInput3(inputId="svgcex", label="Cex", value = 1, class="input-small"),
+#                                           textInput3(inputId="svgcexpt", label="Cex", value = 1, class="input-small")
+#                                           ),
+#                                           tags$head(tags$style(type="text/css", "#svgwidth {width: 35px}")),
+#                                           tags$head(tags$style(type="text/css", "#svgheight {width: 35px}")),
+#                                           tags$head(tags$style(type="text/css", "#svgcex {width: 35px}")),
+#                                           tags$head(tags$style(type="text/css", "#svgcexpt {width: 35px}")),
+#                                         actionButton("updateSVG", "Update SVG ",width='120px'))
+#                        ),
+                       br(),
+                       div(align = "center", downloadButton("exporttxtDS", "Parsed dataset"))
       ),
       #################
       conditionalPanel(condition="input.tabs1=='Line charts'",
@@ -77,34 +100,45 @@ shinyUI(
                        uiOutput("choices"),#,
                        div(align = "center", h4("Visualisation"),
                            checkboxInput("forcezero", label = 'Join TC to zero', value = FALSE),
-                           textInput3(inputId="tcdef", label="Response at t=0", value = '', class="input-small"),
-                           radioButtons("tcse",NULL, list("SE"="SE","SD"="SD"),inline=TRUE)),
+                           textInput3(inputId="tcdef", label="y(t=0)", value = '', class="input-small"),
+                           textInput3(inputId="tcminy", label="Min y", value = '', class="input-small"),
+                           textInput3(inputId="tcmaxy", label="Max y", value = '', class="input-small"),
+                           tags$head(tags$style(type="text/css", "#tcminy {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#tcmaxy {width: 35px}")),
+                           radioButtons("tcse","Display", list("SE"="SE","SD"="SD"),inline=TRUE),
+                           radioButtons("tcfplottyp",NULL, 
+                                        list("TCs only"="All","Add SD/SE"="Both","SD/SE only"="Mean"),inline=TRUE)),
                        br(),
                        div(align = "center", h4("Image export"),
                            textInput3(inputId="tcwidth", label="Width", value = 5, class="input-small"),
                            textInput3(inputId="tcheight", label="Height", value = 4, class="input-small"),
                            textInput3(inputId="tccex", label="Cex", value = 1, class="input-small"),
+                           tags$head(tags$style(type="text/css", "#ndigits {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#setday0 {width: 35px}")),
                            tags$head(tags$style(type="text/css", "#tcdef {width: 35px}")),
                            tags$head(tags$style(type="text/css", "#tcwidth {width: 35px}")),
                            tags$head(tags$style(type="text/css", "#tcheight {width: 35px}")),
                            tags$head(tags$style(type="text/css", "#tccex {width: 35px}"))),
                        div(align = "center",
-                           radioButtons("tcfplottyp",NULL, list("All TCs"="All","Mean/SE"="Mean"),inline=TRUE),
                            radioButtons("tcfplot", label =  NULL,inline = T,choices =c('Svg','Png'),selected = 'Svg'),
                            downloadButton("downloadTC", "Plot"))
       ),
-     #################
+      #################
       conditionalPanel(condition="input.tabs1=='Longitudinal'",
                        div(align = "center", h4("Data input")),
                        uiOutput("boxeslg"),
                        uiOutput("choiceslg"),#,
-                       div(align = "center", h4("Mixed effect modelling"),
-                       checkboxInput("radiolongvar", label = 'Check group-heteroscedasticity', value = TRUE),
-                       radioButtons("bfco", label =  'Outlier detection threshold:',inline = T,
-                                    choices =rev(c('p<0.2','p<0.1','p<0.05','p<0.01','p<0.001','None')), selected = 'p<0.1'),
-                       actionButton("goButton", "Compute")),
                        br(),
-                       div(align = "center", downloadButton("exporttxtLG", "Results"))
+                       div(align = "center", h4("Mixed effect modelling"),
+                           checkboxInput("radiolongvar", label = 'Check group-heteroscedasticity', value = TRUE),
+                           radioButtons("bfco", label =  'Outlier detection threshold:',inline = T,
+                                        choices =rev(c('p<0.2','p<0.1','p<0.05','p<0.01','p<0.001','None')), selected = 'p<0.1'),
+                           actionButton("goButton", "Compute model")),
+                       br(),
+                       div(align = "center", h4("Report format"),
+                           radioButtons('formatLG',NULL, c('PDF', 'HTML', 'DOCX'),
+                                        inline = TRUE),
+                           downloadButton("exporttxtLG", "Report"))
                        
       ),
       #################
@@ -112,99 +146,102 @@ shinyUI(
                        div(align = "center", h4("Data input")),
                        uiOutput("boxescs"),
                        uiOutput("choicescs"),#,
-                       div(align = "center", h4("Time range")),
+                       h5("Time range to select data points"),
                        checkboxInput("radiocsMax", label = "Use maximum value rather than last measurement?", value = FALSE),
                        uiOutput("slidecsui"),
+                      # br(),
                        div(align = "center", h4("Linear modelling")),
                        radioButtons("bfcocs", label =  'Outlier detection threshold:',inline = T,
                                     choices =c('p<0.2','p<0.1','p<0.05','p<0.01','p<0.001','None'), 
                                     selected = 'None'),
                        checkboxInput("radiocsvar", label = 'Check group-heteroskedacity', value = TRUE),
                        br(),
-                       
-                       div(align = "center", h4("Image export"),
-                       textInput3(inputId="cswidth", label="Width", value = 3.2, class="input-small"),
-                       textInput3(inputId="csheight", label="Height", value = 3.5, class="input-small"),
-                       textInput3(inputId="cscex", label="Cex", value = 1, class="input-small"),
-                       textInput3(inputId="cscexpt", label="CexPt", value = 1.3, class="input-small"),
-                       tags$head(tags$style(type="text/css", "#cswidth {width: 35px}")),
-                       tags$head(tags$style(type="text/css", "#csheight {width: 35px}")),
-                       tags$head(tags$style(type="text/css", "#cscex {width: 35px}")),
-                       tags$head(tags$style(type="text/css", "#cscexpt {width: 35px}"))),
-                       div(align = "center", radioButtons("csplot", label =  NULL,inline = T,
-                                                          choices =c('Svg','Png'),selected = 'Svg'),
-                           downloadButton("downloadCS", "Plot"),downloadButton("exporttxtCS", "Results"))
+                       div(align = "center", h4("Visualisation and image export"),
+                           textInput3(inputId="csminy", label="Min y", value = '', class="input-small"),
+                           textInput3(inputId="csmaxy", label="Max y", value = '', class="input-small"),
+                           textInput3(inputId="cswidth", label="Width", value = 4, class="input-small"),
+                           textInput3(inputId="csheight", label="Height", value = 3.5, class="input-small"),
+                           textInput3(inputId="cscex", label="Cex", value = 1, class="input-small"),
+                           textInput3(inputId="cscexpt", label="CexPt", value = 1.2, class="input-small"),
+                           tags$head(tags$style(type="text/css", "#csminy {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#csmaxy {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#cswidth {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#csheight {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#cscex {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#cscexpt {width: 35px}")),
+                           radioButtons("csplot", label =  NULL,inline = T,
+                                        choices =c('Svg','Png'),selected = 'Svg'),
+                           downloadButton("downloadCS", "Plot")),
+                       br(),
+                       div(align = "center", h4("Report format"),
+                           radioButtons('formatCS', NULL, c('PDF', 'HTML', 'DOCX'),inline = TRUE),
+                           downloadButton("exporttxtCS", "Report"))
       ),
-     #################
-     conditionalPanel(condition="input.tabs1=='Survival'",
-                      div(align = "center", h4("Data input")),
-                      uiOutput("boxeskm"),
-                      uiOutput("choiceskm"),#,
-                      # br(),
-                      div(align = "center", h4("Censoring on response/time")),
-                      uiOutput("slidekmui"),
-                      uiOutput("sliderkmtui"),  
-                      checkboxInput("incllastT", label = 'Last timepoint considered as event', value = FALSE),
-                      br(),
-                      div(align = "center", h4("Visualisation"),
-                          textInput3(inputId="kmshift", label="Shifting factor", value = 0.1, class="input-small")),    
-                      br(),
-                      div(align = "center", h4("Image export"),
-                          textInput3(inputId="kmwidth", label="Width", value = 5, class="input-small"),
-                          textInput3(inputId="kmheight", label="Height", value = 4, class="input-small"),
-                          textInput3(inputId="kmcex", label="Cex", value = 1, class="input-small"),
-                          textInput3(inputId="kmcexpt", label="CexPt", value = 1.2, class="input-small"),
-                          textInput3(inputId="kmlwd", label="Lwd", value = 1.5, class="input-small"),
-                          tags$head(tags$style(type="text/css", "#kmwidth {width: 35px}")),
-                          tags$head(tags$style(type="text/css", "#kmheight {width: 35px}")),
-                          tags$head(tags$style(type="text/css", "#kmshift {width: 35px}")),
-                          tags$head(tags$style(type="text/css", "#kmlwd {width: 35px}")),
-                          tags$head(tags$style(type="text/css", "#kmcex {width: 35px}")),
-                          tags$head(tags$style(type="text/css", "#kmcexpt {width: 35px}"))),
-                      div(align = "center", radioButtons("kmfplot", label =  NULL,inline = T,
-                                                         choices =c('Svg','Png'),selected = 'Svg'),
-                          downloadButton("downloadKM", "Plot"),downloadButton("exporttxtKM", "Results"))
-     )
+      #################
+      conditionalPanel(condition="input.tabs1=='Survival'",
+                       div(align = "center", h4("Data input")),
+                       uiOutput("boxeskm"),
+                       uiOutput("choiceskm"),#,
+                       # br(),
+                       radioButtons("survTyp", "Analysis type", list("Overall"=1,"Tumour-free"=2)),
+                       conditionalPanel(condition="input.survTyp=='1'",
+                                        h5("Censoring on response/time"),uiOutput("slidekmui"),uiOutput("sliderkmtui")),  
+                       conditionalPanel(condition="input.survTyp=='2'",
+                                        h5("Tumour detection level"),uiOutput("slidekmui2")),
+                       br(),
+                       div(align = "center", h4("Visualisation and image export"),
+                           textInput3(inputId="kmshift", label="Shifting factor", value = 0.1, class="input-small"),    
+                           textInput3(inputId="kmwidth", label="Width", value = 5, class="input-small"),
+                           textInput3(inputId="kmheight", label="Height", value = 4, class="input-small"),
+                           textInput3(inputId="kmcex", label="Cex", value = 1, class="input-small"),
+                           textInput3(inputId="kmcexpt", label="CexPt", value = 1.2, class="input-small"),
+                           textInput3(inputId="kmlwd", label="Lwd", value = 1.5, class="input-small"),
+                           tags$head(tags$style(type="text/css", "#kmwidth {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#kmheight {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#kmshift {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#kmlwd {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#kmcex {width: 35px}")),
+                           tags$head(tags$style(type="text/css", "#kmcexpt {width: 35px}")),
+                           radioButtons("kmfplot", label =  NULL,inline = T,
+                                        choices =c('Svg','Png'),selected = 'Svg'),
+                           downloadButton("downloadKM", "Plot")),
+                       br(),
+                       div(align = "center", h4("Report format"),
+                           radioButtons('formatKM', NULL, c('PDF', 'HTML', 'DOCX'),inline = TRUE),
+                           downloadButton("exporttxtKM", "Report"))
+      )
       #################
     ), ## sidepanel
     mainPanel(
       tabsetPanel(
         tabPanel("Data upload",
-                 bsCollapse(id = "collapseDS", open = "Experimental design",
-                            bsCollapsePanel("Experimental design",  tableOutput("design"),style = "info"),
+                 bsCollapse(id = "collapseDS", open = "Experimental design",multiple=T,
+                            bsCollapsePanel("Experimental design",  tableOutput("design"),
+                                            style = "info"),
                             bsCollapsePanel("Data in wide format", 
                                             uiOutput("choicesdat"),
                                             uiOutput("groupsdat"),
-                                            DT::dataTableOutput("filetableshort"),style = "info"),
-                            bsCollapsePanel("Data in long format",
-                                            uiOutput("groupsdat2"),
-                                            DT::dataTableOutput("filetablelong"),style = "info")
-                            #bsCollapsePanel("Original data", dataTableOutput("filetableori"),style = "info")
+                                            DT::dataTableOutput("filetableshort"),style = "info")
                  ),
                  lastline()
         ),
         # Visualisation
-        tabPanel("Line charts",
-                 bsCollapse(id = "collapseTC", open = "All",multiple=T,
-                            bsCollapsePanel("All",
-                                            showOutput("plottc3a", "highcharts"),style = "info"),
-                            bsCollapsePanel("Mean", showOutput("plottc3b", "highcharts"),style = "info")
-                 ),
-                 lastline()
-        ),
+        tabPanel("Line charts",showOutput("plottcs", "highcharts"),lastline()),
+        # Longitudinal
         tabPanel("Longitudinal",
-                 bsCollapse(id = "collapseLG", open = c("ANOVA","Pairwise comparisons"),multiple=T,
-                            bsCollapsePanel("ANOVA", tableOutput("modeleffect"),style = "info"),
+                 bsCollapse(id = "collapseLG", open = c("Type II ANOVA","Pairwise comparisons"),multiple=T,
+                            bsCollapsePanel("Type II ANOVA", tableOutput("modelLGeffect"),style = "info"),
                             bsCollapsePanel("Pairwise comparisons", 
                                             uiOutput("radiolong"),
-                                            DT::dataTableOutput("modelpw"), style = "info"),
+                                            DT::dataTableOutput("modelLGpw"), style = "info"),
                             bsCollapsePanel("Diagnostics plots",
-                                            radioButtons("radiodiag", label = NULL,inline = T,
+                                            radioButtons("radiodiaglg", label = NULL,inline = T,
                                                          choices = c('QQ-plot','Fit','Resid/Mice','Resid/Fit'), selected = 'QQ-plot'),
-                                            showOutput("plottc4", "highcharts"), style = "info"),
-                            bsCollapsePanel("Model information",tableOutput("modelsum"),
-                                            verbatimTextOutput("modelcor"),
-                                            verbatimTextOutput("modelwei"), verbatimTextOutput("modelout"), style = "info")
+                                            showOutput("plotdiaglg", "highcharts"), style = "info"),
+                            bsCollapsePanel("Model information",tableOutput("modelLGsum"),
+                                            verbatimTextOutput("modelLGcor"),
+                                            verbatimTextOutput("modelLGwei"),
+                                            verbatimTextOutput("outLG"), style = "info")
                  ),
                  lastline()
         ),
@@ -213,7 +250,13 @@ shinyUI(
                             bsCollapsePanel("Distribution", showOutput("plotcs", "highcharts"),style = "info"),
                             bsCollapsePanel("Pairwise comparisons",uiOutput("grpcsvar"),
                                             DT::dataTableOutput("ctCS"), style = "info"),
-                            bsCollapsePanel("ANOVA",tableOutput("modCS"), verbatimTextOutput("csout"), style = "info"),
+                            bsCollapsePanel("Diagnostics plots",
+                                            radioButtons("radiodiagcs", label = NULL,inline = T,
+                                                         choices = c('QQ-plot','Resid/Grp','Resid/Fit'), selected = 'QQ-plot'),
+                                            showOutput("plotdiagcs", "highcharts"), style = "info"),
+                            bsCollapsePanel("Model information",tableOutput("modCSeffect"),
+                                            tableOutput("modCS"),verbatimTextOutput("modCSwei"),
+                                            verbatimTextOutput("outCS"), style = "info"),
                             bsCollapsePanel("Time point selection",tableOutput("sumCS"),
                                             h6('Time of sampling is specified for each animals if different in the specified time range.'),
                                             style = "info")),

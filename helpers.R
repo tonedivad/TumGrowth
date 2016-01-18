@@ -1,50 +1,55 @@
 library(shiny)
 library(nlme)
-library(xtable)
+library(xtable) ##keep
 library(multcomp)
 library(survival)
-library(doBy)
-library(RColorBrewer)
 library(car)
 library(coxphf)
 library(beeswarm)
 library(rCharts)
 library(DT)
-library(AICcmodavg)
+
+## add?
+library(rms)
+library(shinyjs)
+library(rmarkdown)
 
 
-.myf<-function(pvs){
+.myf<-function(pvs,n=4){
   
-  if(pvs<0.0001) return("<0.0001")
-  return(sprintf("%.4f",pvs))  
+  myf<-function(pv,n=4){
+    if(pv<(10^-n)) return(paste(c("<0.",rep(0,n-1),"1"),collapse=""))
+  return(sprintf(paste("%.",n,"f",sep=""),pv)) 
+  }
+  sapply(pvs,myf,n=n)
 }
-myf<-function(pvs) sapply(pvs,.myf)
+
 
 add.alpha=function (hex.color.list, alpha) 
   sprintf("%s%02X", hex.color.list, floor(alpha * 256))
 
-myfpv<-function(pvs){
-  pvt="*"
-  if(pvs>0.1) return("")
-  if(pvs<=0.1) pvt="."
-  if(pvs<=0.05) pvt="*"
-  if(pvs<=0.01) pvt="**"
-  if(pvs<=0.001) pvt="***"
+.myfpv<-function(pvs){
+  pvt=rep("",length(pvs))
+  pvt[which(pvs<=0.1)]="."
+  pvt[which(pvs<=0.05)]="*"
+  pvt[which(pvs<=0.01)]="**"
+  pvt[which(pvs<=0.001)]="***"
   pvt
 }
 
-getylim<-function(v){
-  ylim=range(v,na.rm=T)
-  ylim=ylim+c(-1,1)*diff(ylim)/20;ylim[1]=max(ylim[1],0);dylim=5
-  if(diff(ylim)<10){ylim[1]=floor(ylim[1]);ylim[2]=ceiling(ylim[2]);dylim=1}
-  if(diff(ylim)>100){ylim[1]=floor(ylim[1]/100)*100;ylim[2]=ceiling(ylim[2]/50)*50;dylim=50}
-  return(list(ylim=ylim,dylim=dylim))
-}
-anof<-function(x) sprintf("%.2f, p<%s%s",x[2,8],myf(x[2,9]),myfpv(x[2,9]))
-
+# getylim<-function(v){
+#   ylim=range(v,na.rm=T)
+#   ylim=ylim+c(-1,1)*diff(ylim)/20;ylim[1]=max(ylim[1],0);dylim=5
+#   if(diff(ylim)<10){ylim[1]=floor(ylim[1]);ylim[2]=ceiling(ylim[2]);dylim=1}
+#   if(diff(ylim)>100){ylim[1]=floor(ylim[1]/100)*100;ylim[2]=ceiling(ylim[2]/50)*50;dylim=50}
+#   return(list(ylim=ylim,dylim=dylim))
+# }
+# anof<-function(x) sprintf("%.2f, p<%s%s",x[2,8],myf(x[2,9]),myfpv(x[2,9]))
+# 
 
 ############################################################################################
 getCols<-function(grp,mid=NULL,what=4){
+  require(RColorBrewer)
   pals=list(rev(brewer.pal(9,"Greens")[c(4,7)]),
             rev(brewer.pal(9,"Blues")[c(5,8)]),
             rev(brewer.pal(9,"Reds")[c(4,8)]),
@@ -74,129 +79,78 @@ getCols<-function(grp,mid=NULL,what=4){
 ################################################################################################
 ################################################################################################
 
-plotTC3<-function(df,resp,lgrps,force2zero=FALSE,dogrps=TRUE,type='All',se=TRUE,defzero=NA){
+plotLineC<-function(df,resp,lgrps,force2zero=FALSE,type='All',se=TRUE,defzero=NA,miny=NA,maxy=NA){
   
   df$Resp2=round(df[,resp],3)
-  xlim=pretty(seq(ifelse(force2zero,0,min(df$tp)),max(df$tp),length=9))
+  xlim=pretty(seq(ifelse(force2zero,0,min(df$Tp)),max(df$Tp),length=9))
   
-  miny=round(min(df$Resp2,na.rm=T),3)
-  if(force2zero & all(df$tp>0)){
+  if(is.na(miny)){
+    miny=round(min(df$Resp2,na.rm=T),3)
+  if(force2zero & all(df$Tp>0)){
     miny=ifelse(grepl("\\.log",resp),min(df$Resp2,na.rm=T)-log(2),0)
     miny=ifelse(is.na(defzero),miny,round(defzero,3))
   }
- # if(any(is.na(df$Resp2)) & grepl('\\.log',resp)) df$Resp2[is.na(df$Resp2)]=round(min(df$Resp2,na.rm=T)-log(2),3)
+    miny=0.95*miny
+  }
   
   df=df[!is.na(df$Resp2),]
-ylim=pretty(seq(0.95*miny,max(df$Resp2),length=8))
-   #  print(ylims)
-  idf=df[df$grp%in%lgrps & !is.na(df$Resp2) & df$Use,c("tp","grp","Id","Resp2","colorI","colorG")]
-  if(force2zero & all(df$tp>0)){
+  if(is.na(maxy)) maxy=max(df$Resp2)
+  ylim=pretty(c(miny,maxy))
+  idf=df[df$Grp%in%lgrps & !is.na(df$Resp2) & df$Use,c("Tp","Grp","Id","Resp2","color")]
+  idf$Id=factor(idf$Id)
+  idf$Grp=factor(idf$Grp)
+  if(force2zero & all(df$Tp>0)){
     aidf=idf[tapply(1:nrow(idf),idf$Id,function(x) x[1]),]
-    aidf$tp=0
+    aidf$Tp=0
     aidf$Resp2=miny
     idf=rbind(aidf,idf)
-    idf=idf[order(idf$grp,idf$Id,idf$tp),]
+    idf=idf[order(idf$Grp,idf$Id,idf$Tp),]
     idf$Resp2[which(idf$Resp2<=miny)]=miny
   }
-  idf$grp=factor(idf$grp)
+ 
+  ##################################
+  tmpdata=do.call("rbind",lapply(levels(idf$Grp),function(i){
+    l=which(idf$Grp==i)
+  tmp=t(do.call("cbind",tapply(idf$Resp2[l],idf$Tp[l],function(x) 
+    c(n=length(x),y=mean(x),sd=sd(x),se=sd(x)/sqrt(length(x))))))
+  data.frame(cbind(tmp,x=tapply(idf$Tp[l],idf$Tp[l],unique)),Grp=i,color=idf$color[l][1],stringsAsFactors=F)
+}))
+  ##################################
+  
+  idf$Grp=as.character(idf$Grp)
+  idf$Id=as.character(idf$Id)
   names(idf)[which(names(idf)=="Resp2")]="y"
-  names(idf)[which(names(idf)=="tp")]="x"
+  names(idf)[which(names(idf)=="Tp")]="x"
   
-  #  print(str(idf))
-  #   idf$color=rep(brewer.pal(9,"Set1"),10)[-6][as.numeric(factor(idf$Id))]
-  #   if(length(unique(idf$grp))>1)
-  #     idf$color=getCols(idf$grp,as.character(idf$Id))[as.character(idf$Id)]
-  #   
-  if(type=='All'){
-    a <- rCharts::Highcharts$new()
-    for(i in unique(idf$Id))
-      a$series(data = lapply(which(idf$Id==i),function(j) as.list(idf[j,])), name=i,type = "line",
-               color=idf$colorI[which(idf$Id==i)][1])
-    a$tooltip( formatter = "#! function() { return this.point.Id + ' (' + this.point.grp + ') at ' + this.point.x + ': ' + this.point.y ; } !#")
-    a$yAxis(title = list(text = "Response"), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
-    a$xAxis(title = list(text = "Time"), min =  min(xlim), max = max(xlim), tickInterval = diff(xlim)[1])
-    a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Mice"))
-    return(a)
-  }
-  
-  # lcols=getCols(unique(idf$grp),NULL)
-  #  print(lcols)
   a <- rCharts::Highcharts$new()
-  for(i in unique(idf$grp)){
-    l=which(idf$grp==i)
-    
-    tmp=t(do.call("cbind",tapply(idf$y[l],idf$x[l],function(x) c(n=length(x),y=mean(x),sd=sd(x),se=sd(x)/sqrt(length(x))))))
-    tmp=data.frame(cbind(tmp,x=tapply(idf$x[l],idf$x[l],unique)),grp=i)
-    tmp$ymin=round(tmp$y-ifelse(se,1,0)*tmp$se-ifelse(se,0,1)*tmp$sd,3)
-    tmp$ymax=round(tmp$y+ifelse(se,1,0)*tmp$se+ifelse(se,0,1)*tmp$sd,3)
-    if(any(is.na(tmp$se))) tmp$ymin[is.na(tmp$se)]=tmp$ymax[is.na(tmp$se)]=tmp$y[is.na(tmp$se)]
-    tmp$y=round(tmp$y,3)
-    tmp$se=round(tmp$se,3)
-    tmp$color=unname(idf$colorG[l][1])
-    a$series(data = lapply(1:nrow(tmp),function(j) as.list(tmp[j,])), name=i,type = "line",color=tmp$color[1],lineWidth=4)
-    a$series(data = lapply(which(tmp$grp==i),function(j) 
-      unname(as.list(tmp[j,c("x","ymin","ymax")]))),type = "arearange",# showInLegend = FALSE,
-      fillOpacity = 0.3,lineWidth = 0,color=unname(tmp$color[which(tmp$grp==i)][1]),zIndex = 0)
-    
+  if(type!='All'){
+    for(i in unique(idf$Grp)){
+      tmp=tmpdata[tmpdata$Grp==i,]
+      tmp$ymin=round(tmp$y-ifelse(se,1,0)*tmp$se-ifelse(se,0,1)*tmp$sd,3)
+      tmp$ymax=round(tmp$y+ifelse(se,1,0)*tmp$se+ifelse(se,0,1)*tmp$sd,3)
+      if(any(is.na(tmp$se))) tmp$ymin[is.na(tmp$se)]=tmp$ymax[is.na(tmp$se)]=tmp$y[is.na(tmp$se)]
+      tmp$y=round(tmp$y,3)
+      tmp$se=round(tmp$se,3)
+      
+      a$series(data = lapply(1:nrow(tmp),function(j) as.list(tmp[j,])), name=i,type = "line",color=tmp$color[1],lineWidth=4)
+      a$series(data = lapply(which(tmp$Grp==i),function(j) 
+        unname(as.list(tmp[j,c("x","ymin","ymax")]))),type = "arearange",# showInLegend = FALSE,
+        fillOpacity = 0.3,lineWidth = 0,color=unname(tmp$color[which(tmp$Grp==i)][1]),zIndex = 0)
+      
+    }
   }
+  if(type%in%c('All','Both')){
+      for(i in unique(idf$Id))
+      a$series(data = unname(lapply(which(idf$Id==i),function(j) as.list(idf[j,c("x","y","Grp","Id")]))), name=i,type = "line",
+               color=unname(idf$color[which(idf$Id==i)][1]))
+    a$tooltip( formatter = "#! function() { return this.point.Id + ' (' + this.point.Grp + ') at ' + this.point.x + ': ' + this.point.y ; } !#")
+  }
+
   a$yAxis(title = list(text = "Response"), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
   a$xAxis(title = list(text = "Time"), min =  min(xlim), max = max(xlim), tickInterval = diff(xlim)[1])
-  a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Treatment group"))
-#   a$tooltip( formatter = "#! function() { return this.point.grp + ' (' + this.point.n + ') at ' + this.point.x + ': ' + this.point.y ; } !#")
-#   a$yAxis(title = list(text = "Response"), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
-#   a$xAxis(title = list(text = "Time"), min =  min(xlim), max = max(xlim), tickInterval = diff(xlim)[1])
-#   a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Group"))
-  
-  return(a)
-  
+  a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Mice"))
+  return(list(plot=a,df=idf,sesd=tmpdata,xlim=xlim,ylim=ylim,Resp=resp))
+
   
 }
 
-###############################################################################################################33
-# 
-# ################################################################################################
-# plotTC2<-function(mod){
-#   
-#   df=mod$data
-#   ylim=range(df$Resp)
-#   ylim=ylim+c(-1,1)*diff(ylim)/20
-#   xlim=c(floor(min(df$tp)),ceiling(max(df$tp)*1.2))
-#   
-#   lgrps=levels(df$grp)
-#   newdf=expand.grid(tp=min(df$tp):max(df$tp),grp=lgrps)
-#   newdf$pr=predict(mod$model,newdata=newdf)
-#   
-#   p1=rPlot(Resp ~ tp | grp, data = df, type = 'point', color = 'grp',cex=.6)
-#   return(p1)
-# }
-# 
-# 
-# plotTC<-function(mod){
-#   
-#   df=mod$data
-#   ylim=range(df$Resp)
-#   ylim=ylim+c(-1,1)*diff(ylim)/20
-#   xlim=c(floor(min(df$tp)),ceiling(max(df$tp)*1.2))
-#   
-#   lgrps=levels(df$grp)
-#   newdf=expand.grid(tp=min(df$tp):max(df$tp),grp=lgrps)
-#   newdf$pr=predict(mod$model,newdata=newdf)
-#   
-#   
-#   def.par <- par(no.readonly = TRUE) # save default, for resetting...
-#   
-#   par(mar=c(4,4.5,2,1),cex.main=1.2,cex.lab=0.9,cex.axis=0.9,mfrow=c(ceiling(length(lgrps)/2),2))
-#   for(iix in 1:length(lgrps)){
-#     plot(0,0,cex=0,xlab="Time",ylab="Response",xlim=xlim,ylim=ylim,axes=F,main=lgrps[iix])
-#     lines(tapply(newdf$tp,newdf$tp,mean),tapply(newdf$pr,newdf$tp,mean),lwd=2,col=1)
-#     idf=df[which(df$grp==lgrps[iix]),]
-#     idf$Id=factor(idf$Id)
-#     icol=ifelse(is.null(idf$col),brewer.pal(8,"Set1")[iix],idf$col[1])
-#     re=tapply(1:nrow(idf),factor(idf$Id),function(x) lines(idf$tp[x],idf$Resp[x],pch=16,cex=.5,col=icol))
-#     rep=tapply(1:nrow(idf),factor(idf$Id),function(x) points(idf$tp[x],idf$Resp[x],pch=16,cex=.8,col=icol))
-#     axis(1)
-#     axis(2,las=2)
-#   }
-#   par(def.par)  #- reset to default
-#   
-# }

@@ -1,48 +1,139 @@
 
-.infctKM<-function(object){
-  LL <- 2 * diff(object$loglik)
-  LLpv=1 - pchisq(LL, object$df)
-  wald.z <- t(coef(object)) %*% solve(object$var) %*% coef(object)
-  wald.zpv=1 - pchisq(wald.z, object$df)
-  rbind(sprintf("Likelihood ratio: %.2f, p<%s",LL,myf(LLpv)),
-        sprintf("Wald: %.2f, p<%s",wald.z,myf(wald.zpv)))
+
+compKM<-function(objres,ref,firth=FALSE){
+  
+  cdf=objres$Df
+  cdf$Grp=relevel(cdf$Grp,ref)
+  
+  modtab=hrtab=NULL
+  if(nlevels(cdf$Grp)==1 | all(!cdf$Event) | (all(cdf$Event) & length(unique(cdf$Time))==1))
+    return(list(typ=objres,model=NULL,data=cdf,modTab=NULL,hrTab=NULL))
+  
+  ####################
+  if(!firth){
+    mod=cph(Surv(Time,Event)~Grp,cdf,eps=1e-6,surv=T,x=T,y=T)
+    
+    mtest=cbind(c(2*diff(mod$loglik),anova(mod)[1,1],mod$score),nlevels(cdf$Grp)-1)
+    mtest=cbind(mtest,1-pchisq(mtest[,1],mtest[,2]))
+    modtab=matrix(apply(mtest,1,function(x) 
+      sprintf("%.2f  (d.f.=%d), p<%s%s",x[1],x[2],.myf(x[3]),.myfpv(x[3]))),ncol=3)
+    dimnames(modtab)=list("Treat",c("Likelihood ratio test","Wald test","LogRank test"))
+    
+    cf=exp(cbind(mod$coefficients,confint(mod)))
+    cf[cf>10000]=Inf
+    cf[cf<1/10000]=-Inf
+    pv=(1-pchisq(abs(mod$coefficients/sqrt(diag(mod$var)))^2,1))
+    
+    hrs=apply(cf,1,function(x) sprintf("%.3f [%.3f;%.3f]",x[1],x[2],x[3]))
+    hrpva=sprintf('%s',.myf(p.adjust(pv,"holm")))
+    hrpv=sprintf('%s',.myf(pv))
+  }
+  ####################
+  if(firth){
+    mod0=cph(Surv(Time,Event)~Grp,cdf,eps=1e-6)
+    
+    mod<-try(coxphf(Surv(Time,Event)~Grp,cdf),TRUE)
+    wald.z <- t(coef(mod)) %*% solve(mod$var) %*% coef(mod)
+    
+    mtest=cbind(c(2*diff(mod$loglik),wald.z,mod0$score),nlevels(cdf$Grp)-1)
+    mtest=cbind(mtest,1-pchisq(mtest[,1],mtest[,2]))
+    modtab=matrix(apply(mtest,1,function(x) 
+      sprintf("%.2f  (d.f.=%d), p<%s%s",x[1],x[2],.myf(x[3]),.myfpv(x[3]))),ncol=3)
+    dimnames(modtab)=list("Treat",c("Likelihood ratio test","Wald test","LogRank test"))
+
+    hrs=apply(cbind(mod$coefficients,mod$ci.lower,mod$ci.upper),1,function(x) sprintf("%.3f [%.3f;%.3f]",exp(x[1]),exp(x[1]-1.96*x[2]),exp(x[1]+1.96*x[2])))
+    hrpva=sprintf('%s',.myf(p.adjust(mod$prob,"holm")))
+    hrpv=sprintf('%s',.myf(mod$prob))
+  }
+  ####################
+  lrs=sapply(levels(cdf$Grp)[-1],function(x) 
+    summary(coxph(Surv(Time,Event)~factor(Grp),cdf[cdf$Grp%in%c(ref,x),]))$sctest["pvalue"])
+  lrsa=sprintf('%s',.myf(p.adjust(lrs,"holm")))
+  lrs=sprintf('%s',.myf(lrs))
+  hrtab=cbind(Covariate=levels(cdf$Grp)[-1],'Hazard ratio'=hrs,"Pvalue"=hrpv,"PvalueAdj"=hrpva,"LogRPval"=lrs,"LogRPvalAdj"=lrsa)
+  rownames(hrtab)=NULL
+  ####################
+  
+  list(model=mod,Df=cdf,modTab=modtab,hrTab=hrtab,Typ=objres$Typ,Resp=objres$Resp,Par=objres$Par)
+}
+
+getOSTab<-function(cdat,resp=gsub("\\.log$","",cdat$Resp[1]),lgrps=levels(cdat$dataM$Grp),
+                   lastT=max(cdat$data$Tp,na.rm=T),lastM=Inf){
+  
+  df=cdat$data
+  dfm=cdat$dataM
+  lmids=dfm$Id[dfm$Use & dfm$Grp%in%lgrps]
+  lastMid=tapply(df$Tp,df$Id,max)
+  
+  
+  andf=list()
+  for(ipid in lmids){
+    if(!dfm[ipid,]$Surv){
+      l=which(!is.na(df[,resp]) & df$Tp<=lastT & df[,resp]<=lastM & df$Id==ipid)
+      ndf=data.frame(Id=ipid,Time=max(df$Tp[l]),Resp=rev(df[l,resp])[1],stringsAsFactors=F)
+      ndf$Event=(ndf$Time<=lastT & ndf$Resp>0) #else  ndf$Event=(ndf$Time<lastT & ndf$Resp>0)
+    }
+    if(dfm[ipid,]$Surv){
+      l=which(!is.na(df[,resp]) & df[,resp]<=lastM & df$Id==ipid)
+      ndf=data.frame(Id=ipid,Time=max(df$Tp[l]),Resp=rev(df[l,resp])[1],Event=FALSE,stringsAsFactors=F)
+      if(ndf$Time<lastMid[ipid]) ndf$Event=TRUE
+    }
+    andf[[ipid]]=ndf
+  }
+  ndf=do.call("rbind",andf)
+  ndf$Grp=factor(dfm[ndf$Id,]$Grp)
+  params=paste("censoring on response=",lastM," and time=",lastT,sep="")
+  return(list(Df=ndf,Typ="OS",Resp=resp,Par=params))
 }
 
 
-plotKM<-function(df,resp,lgrps=NULL,lastT=max(df$tp,na.rm=T),lastM=Inf,nextday=FALSE,incllastT=FALSE,shift0=0){
+getTFSTab<-function(cdat,resp=gsub("\\.log$","",cdat$Resp[1]),lgrps=levels(cdat$dataM$Grp),firstM=0){
   
-  if(length(lgrps)==0) lgrps=levels(df$grp)
-  df=df[df$grp%in%lgrps & df$Use,]
-  df$grp=factor(df$grp)
-  df$Resp=df[,resp]
-  l=which(!is.na(df$Resp) & df$tp<=lastT & df$Resp<=lastM)
-  ndf=data.frame(Time=tapply(l,df$Id[l],function(x) max(df$tp[x])),
-                 Resp=tapply(l,df$Id[l],function(x) rev(df$Resp[x])[1]),
-                 color=tapply(l,df$Id[l],function(x) df$colorG[x][1]))
-  ndf$grp=factor(df$grp[match(rownames(ndf),df$Id)])
-  ndf$Id=df$Id[match(rownames(ndf),df$Id)]
-  #ndf$Event0=sapply(ndf$Id,function(x) length(which(df$Id==x & df$tp>ndf[x,]$Time & !is.na(df[x,]$Resp)))>0)
-  if(incllastT) ndf$Event=(ndf$Time<=lastT & ndf$Resp>0) else  ndf$Event=(ndf$Time<lastT & ndf$Resp>0)
+  df=cdat$data
+  dfm=cdat$dataM
+  lmids=dfm$Id[dfm$Use & dfm$Grp%in%lgrps]
   
-  if(nextday){
-    ltps=sort(unique(df$tp))
-    if(incllastT) l=which(ndf$Event & ndf$Time<=lastT & ndf$Resp>0) else  l=which(ndf$Event & ndf$Time<lastT & ndf$Resp>0)
-    if(length(l)>0) 
-      for(i in l) ndf$Time[i]=min(ltps[ltps>ndf$Time[i]])
+
+  andf=list()
+  for(ipid in lmids){
+      l=which(!is.na(df[,resp]) & df$Id==ipid)
+      if(all(df[l,resp]<=firstM)){
+        andf[[ipid]]=data.frame(Id=ipid,Time=max(df$Tp[l]),Resp=df[max(l),resp],Event=FALSE,stringsAsFactors=F)
+        next
+      }
+      l1=which(df[l,resp]<=firstM)
+      if(length(l1)==0) l1=0
+      if(length(l1)>0 & l1[1]!=1) l1=0
+      if(length(l1)>1){
+        ldi1=diff(l1)
+        l1=ifelse(all(ldi1==1),max(l1),min(which(ldi1>1)))
+      }
+      andf[[ipid]]=data.frame(Id=ipid,Time=df$Tp[l[l1+1]],Resp=df[l[l1+1],resp],Event=TRUE,stringsAsFactors=F)
   }
+  ndf=do.call("rbind",andf)
+  ndf$Grp=factor(dfm[ndf$Id,]$Grp)
+  params=paste("detection limit ",firstM,sep="")
+  return(list(Df=ndf,Typ="TFS",Resp=resp,Par=params))
+}
+
+plotKM<-function(obj,gcols=getCols(ndf$Grp),shift=0.1,lwd=1,maxtp=NULL,title= "Perc. surviving",retplot=T){
   
-  shift=as.vector(scale((1:nlevels(df$grp))*shift0,scale=F))
-  names(shift)=levels(df$grp)
-  akms=lapply(levels(ndf$grp),function(i){ 
-    tt=data.frame(unclass(survfit(Surv(Time,Event)~1,ndf[ndf$grp==i,]))[c("time","n.risk","n.event")])
+  ndf=obj$Df
+  if(is.null(maxtp)) maxtp=max(ndf$Time*1.1)
+  limtp=pretty(c(0,maxtp))
+  
+  shift=as.vector(scale((1:nlevels(ndf$Grp))*shift[1],scale=F))
+  names(shift)=levels(ndf$Grp)
+  akms=lapply(levels(ndf$Grp),function(i){ 
+    tt=data.frame(unclass(survfit(Surv(Time,Event)~1,ndf[ndf$Grp==i,]))[c("time","n.risk","n.event")])
     names(tt)[1]="x"
     n0=tt$n.risk[1]
     tt=rbind(c(0,n0,0),tt)
     tt$y=100*tt$n.risk/n0
     if(nrow(tt)>2){
       add=tt[2:(nrow(tt)-1),]
-    add$y=tt$y[2:(nrow(tt)-1)+1]
-    tt=rbind(tt,add)
+      add$y=tt$y[2:(nrow(tt)-1)+1]
+      tt=rbind(tt,add)
     }
     tt=tt[order(tt$x,-tt$y),]
     if(tt[nrow(tt),2]==tt[nrow(tt),3]){
@@ -50,88 +141,26 @@ plotKM<-function(df,resp,lgrps=NULL,lastT=max(df$tp,na.rm=T),lastM=Inf,nextday=F
       add[2]=add[3]=add[4]=0
       tt=rbind(tt,add)
     }
-    tt$grp=i;tt$n0=n0;
+    tt$Grp=i;tt$n0=n0;
     tt$x0=tt$x
     tt$x=tt$x+shift[i]
-    tt$y=round(tt$y,1)
-    tt$color=ndf$color[ndf$grp==i][1]
+    tt$y=round(tt$y,2)
+    tt$color=gcols[tt$Grp]
     tt
   })
-  names(akms)=levels(ndf$grp)
+  names(akms)=levels(ndf$Grp)
+  
+  if(!retplot) return(list(m=akms,limtp=limtp,title=title))
   
   a <- rCharts::Highcharts$new()
   for(i in names(akms))
-    a$series(data = lapply(1:nrow(akms[[i]]),function(j) as.list(akms[[i]][j,])), name=i,color=akms[[i]]$color[1],type = "line")
-  a$tooltip( formatter = "#! function() { return this.point.grp + ' at ' + this.point.x0 +
+    a$series(data = lapply(1:nrow(akms[[i]]),function(j) as.list(akms[[i]][j,])), name=i,color=akms[[i]]$color[1],type = "line",lineWidth = lwd)
+  a$tooltip( formatter = "#! function() { return this.point.Grp + ' at ' + this.point.x0 +
              ' (' + this.point.y + '/' + this.point.n0 + ')' ; } !#")
-  #a$legend(enabled = F)
-  a$yAxis(title = list(text = "Perc. surviving"), min = 0, max = 100, tickInterval = 20)
-  
-  #######################3
-  v=paste(ndf$Id," (",ndf$Time,c("","+")[ndf$Event+1],")",sep="")
-  names(v)=NULL
-  lso=order(-ndf$Time)
-  v=tapply(v[lso],ndf$grp[lso],sort)
-  sumids=cbind(Group=names(v),"Censoring"=unlist(sapply(v,paste,collapse=" ")))
-  
-  exptxt=list('****Ids***',c('Group','Censoring'))
-  for(i in 1:nrow(sumids)) exptxt=c(exptxt,list(sumids[i,]))
-  
-  ndf2=ndf[,-3];ndf2$grp=as.character(ndf2$grp)
-  exptxt=c(exptxt,list('****Data***'),list(colnames(ndf2)))
-  for(i in 1:nrow(ndf2)) exptxt=c(exptxt,list(ndf2[i,]))
-  
-  return(list(plot=a,df=ndf,akms=akms,sumids=sumids,exptxt=exptxt,resp=resp,lgrps=lgrps,lastT=lastT,lastM=lastM,incllastT=incllastT))
-  }
-
-compKM<-function(objres,ref,firth=FALSE){
-  
-  ndf=objres$df
-  ndf$grp=relevel(ndf$grp,ref)
-  
-  exptxt=objres$exptxt
-  modtab=hrtab=NULL
-  if(nlevels(ndf$grp)>1){
-    ####################
-    if(!firth){
-      mod=coxph(Surv(Time,Event)~grp,ndf)
-      x=summary(mod)
-      modtab=rbind(sprintf("Likelihood ratio: %.2f, p<%s",x$logtest["test"],myf(x$logtest["pvalue"])),
-                   sprintf("Wald: %.2f, p<%s",x$waldtest["test"],myf(x$waldtest["pvalue"])),
-                   sprintf("log-rank: %.2f, p<%s",x$sctest["test"],myf(x$sctest["pvalue"])))
-      colnames(modtab)="Test"
-      hrs=apply(x$coefficients,1,function(x) sprintf("%.2f [%.2f;%.2f]",exp(x[1]),exp(x[1]-1.96*x[2]),exp(x[1]+1.96*x[2])))
-      hrpva=sprintf('%s',myf(p.adjust(x$coefficients[,5],"holm")))
-      hrpv=sprintf('%s',myf(x$coefficients[,5]))
-    }
-    ####################
-    if(firth){
-      mod<-try(coxphf(Surv(Time,Event)~grp,ndf),TRUE)
-      modtab=.infctKM(mod)
-      colnames(modtab)="Test"
-      hrs=apply(cbind(mod$coefficients,mod$ci.lower,mod$ci.upper),1,function(x) sprintf("%.2f [%.2f;%.2f]",exp(x[1]),exp(x[1]-1.96*x[2]),exp(x[1]+1.96*x[2])))
-      hrpva=sprintf('%s',myf(p.adjust(mod$prob,"holm")))
-      hrpv=sprintf('%s',myf(mod$prob))
-    }
-    ####################
-    lrs=sapply(levels(ndf$grp)[-1],function(x) 
-      summary(coxph(Surv(Time,Event)~factor(grp),ndf[ndf$grp%in%c(ref,x),]))$sctest["pvalue"])
-    lrsa=sprintf('%s',myf(p.adjust(lrs,"holm")))
-    lrs=sprintf('%s',myf(lrs))
-    hrtab=cbind(Covariate=levels(ndf$grp)[-1],'Hazard ratio'=hrs,"HR Pval"=hrpv,"HR PvalAdj"=hrpva,"LR Pval"=lrs,"LR PvalAdj"=lrsa)
-    rownames(hrtab)=NULL
-    ####################
-
-        exptxt=c(exptxt,list('***Stats***'),as.list(modtab[,1]))
-    exptxt=c(exptxt,list(paste('***HR to',ref)),list(c('Covariate','Hazard ratio','HR pvalue','HR adj. pvalue','LR pvalue','LR adj. pvalue')))
-    for(i in 1:nrow(hrtab)) exptxt=c(exptxt,list(hrtab[i,]))
-    
-    
-  }
-  
-  list(df=ndf,mod=modtab,hr=hrtab,sumids=objres$sumids,exptxt=exptxt,
-       resp=objres$resp,lgrps=objres$lgrps,lastT=objres$lastT,lastM=objres$lastM,incllastT=objres$incllastT)
+  a$xAxis(title = list(text = "Time"), min = min(limtp), max = max(limtp), tickInterval = diff(limtp)[1])
+  a$yAxis(title = list(text =title), min = 0, max = 100, tickInterval = 20)
+  return(list(plot=a,m=akms,limtp=limtp,title=title))
 }
-############################################################################################
+
 ############################################################################################
 
