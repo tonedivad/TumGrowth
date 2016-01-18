@@ -179,7 +179,7 @@ shinyServer(function(input, output, session) {
     resp=gsub("\\.log","",input$responsekm)
     if(!resp%in%cdat$Resp) return(NULL)
     vraw=na.omit(cdat$data[,resp])
-    valr=pretty(c(quantile(vraw,.2),max(vraw)),100)
+    valr=pretty(c(quantile(vraw,.05),max(vraw)),100)
     sliderInput(inputId="slidekm",label=NULL,
                 min=min(valr),max=max(valr),value=max(valr),step =diff(valr)[1])
   })
@@ -191,7 +191,7 @@ shinyServer(function(input, output, session) {
     resp=gsub("\\.log","",input$responsekm)
     if(!resp%in%cdat$Resp) return(NULL)
     vraw=na.omit(cdat$data[,resp])
-    valr=pretty(c(quantile(vraw,.8),0),100)
+    valr=pretty(c(quantile(vraw,.95),0),100)
     sliderInput(inputId="slidekm2",label=NULL,
                 min=min(valr),max=max(valr),value=min(valr),step =diff(valr)[1])
   })
@@ -639,7 +639,7 @@ shinyServer(function(input, output, session) {
   output$exporttxtLG <- downloadHandler(
     filename = function() {
       paste(fileData()$Ori,"-LG.", sep = '', switch(
-        input$formatLG, PDF = 'pdf', HTML = 'html', Word = 'docx'
+        input$formatLG, PDF = 'pdf', HTML = 'html', DOCX = 'docx'
       ))
     },
     content = function(file) {
@@ -654,7 +654,7 @@ shinyServer(function(input, output, session) {
       plotdata=plotDiagLG(objres,colGrps()[levels(objres$data$Grp)],typplot='None')
       
       out <- render('reportLG.Rmd', switch(
-        input$formatLG,PDF = pdf_document(), HTML = html_document(), Word = word_document()
+        input$formatLG,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
       ))
       file.rename(out, file)
     }
@@ -664,7 +664,7 @@ shinyServer(function(input, output, session) {
   output$exporttxtKM <- downloadHandler(
     filename = function() {
       paste(fileData()$Ori,"-KM.", sep = '', switch(
-        input$formatKM, PDF = 'pdf', HTML = 'html', Word = 'docx'
+        input$formatKM, PDF = 'pdf', HTML = 'html', DOCX = 'docx'
       ))
     },
     content = function(file) {
@@ -680,7 +680,7 @@ shinyServer(function(input, output, session) {
                 lwd=as.numeric(input$kmlwd),retplot=FALSE)
       
       out <- render('reportKM.Rmd', switch(
-        input$formatKM,PDF = pdf_document(), HTML = html_document(), Word = word_document()
+        input$formatKM,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
       ))
       file.rename(out, file)
     }
@@ -690,7 +690,7 @@ shinyServer(function(input, output, session) {
   output$exporttxtCS <- downloadHandler(
     filename = function() {
       paste(fileData()$Ori,"-CS.", sep = '', switch(
-        input$formatCS, PDF = 'pdf', HTML = 'html', Word = 'docx'
+        input$formatCS, PDF = 'pdf', HTML = 'html', DOCX = 'docx'
       ))
     },
     content = function(file) {
@@ -708,7 +708,7 @@ shinyServer(function(input, output, session) {
                 miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy),retplot=FALSE)
       
       out <- render('reportCS.Rmd', switch(
-        input$formatCS,PDF = pdf_document(), HTML = html_document(), Word = word_document()
+        input$formatCS,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
       ))
       file.rename(out, file)
     }

@@ -125,7 +125,7 @@ compModLG<-function(lgdf,bfco=0.1,checkvar=TRUE){
 ################################################################################################
 ### Diagplots
 
-plotDiagLG<-function(mod,gcols=NULL,typplot="qqplot"){
+plotDiagLG<-function(mod,gcols=NULL,typplot="QQ-plot"){
   
   if(is.null(gcols)) gcols=getCols(mod$data$Grp)
   resp=mod$Resp
@@ -198,6 +198,7 @@ plotDiagLG<-function(mod,gcols=NULL,typplot="qqplot"){
     tmpqqp=tmpdata[,c("resid","qt","x"  ,"Grp","Id","color")]
     names(tmpqqp)[1:3]=c("x","y","Tp")
     ab=c(range(limxqq),range(limxqq))
+    if(nrow(tmpqqp)>800) tmpqqp=tmpqqp[rev(order(-abs(tmpqqp[,1]))[1:800]),]
     a <- rCharts::Highcharts$new()
     a$series(data = list(list(x=ab[1],y=ab[3]),list(x=ab[2],y=ab[4])), name='reg',type = "line",color='grey',
              showInLegend = FALSE, marker= list(enabled = FALSE))
@@ -228,6 +229,8 @@ plotDiagLG<-function(mod,gcols=NULL,typplot="qqplot"){
   # format resid,fit
   tmpresf=tmpdata[,c("resid","fit" ,"x" ,"Grp","Id","color")]
   names(tmpresf)[1:3]=c("y","x","Tp")
+  if(nrow(tmpresf)>800) tmpresf=tmpresf[rev(order(-abs(tmpresf[,1]))[1:800]),]
+
   c <- rCharts::Highcharts$new()
   #  c$series(data = list(list(x=flim[1],y=0),list(x=flim[2],y=0)), name='reg',type = "line",color='grey')
   c$series(data = lapply(1:nrow(tmpresf),function(i) as.list(tmpresf[i,])), name='resid',type = "scatter")
