@@ -1,6 +1,11 @@
-
 ################################################################################################
-### Compute LG: piecewise model
+### compModLGpw: compute LG in piecewise model
+### compModLG: compute LG: linear model
+### formatLGpw: format pairwise comparison table given the Reference - back transformation to be added soon
+### prepDiagLG: prep data for plotDiag function
+### .makeOnepw: compute contrasts given matrix K
+################################################################################################
+
 compModLGpw<-function(lgmat,bfco=0.1,tpcut=NA,adjust=TRUE){
   
   lgdf=lgmat$Df
@@ -138,7 +143,6 @@ compModLGpw<-function(lgmat,bfco=0.1,tpcut=NA,adjust=TRUE){
 }
 
 ################################################################################################
-### Compute LG: linear model
 compModLG<-function(lgmat,bfco=0.1,adjust=TRUE){
   
   lgdf=lgmat$Df
@@ -229,8 +233,7 @@ compModLG<-function(lgmat,bfco=0.1,adjust=TRUE){
 }
 
 
-####################################
-## Compute contrasts given matrix K
+#####################################################################
 .makeOnepw<-function(x,K){
   
   jtab2=doBy:::LSmeans(x,K=K,adjust=TRUE)[[1]]
@@ -250,10 +253,9 @@ compModLG<-function(lgmat,bfco=0.1,adjust=TRUE){
 }
 
 ################################################################################################
-### Format pairwise comparison table given the Reference - back transformation to be added soon
 formatLGpw<-function(lgres,ref='All',backtrans=F){
   
-  btfct<-function(x) x;collab="Difference"
+  ibtfct<-function(x) x;collab="Difference"
   # if(lgres$Trans=="Log" & backtrans){btfct<-function(x) exp(x);collab='Ratio'}
   #  if(lgres$Trans=="Sqrt" & backtrans) btfct<-function(x) x^2
   if(length(ref)==1) if(ref=='All') ref=levels(lgres$data$Grp)
@@ -272,7 +274,7 @@ formatLGpw<-function(lgres,ref='All',backtrans=F){
   }
   
   dcts=apply(as.matrix(pwt[,c("Contrast","Lower","Upper")]),1,function(x)
-    sprintf("%.3f [%.3f;%.3f]",btfct(x[1]),btfct(x[2]),btfct(x[3])))
+    sprintf("%.3f [%.3f;%.3f]",ibtfct(x[1]),ibtfct(x[2]),ibtfct(x[3])))
   
   top=data.frame(pwt[,c("Largest","Smallest"),drop=F],Contrast=dcts,Df=sprintf('%.2f',pwt[,"Df"]),
                  Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),stringsAsFactors=FALSE)
@@ -296,16 +298,16 @@ formatLGpw<-function(lgres,ref='All',backtrans=F){
 
 
 ################################################################################################
-### prep data for plotDiag function
 prepDiagLG<-function(lgres){
   
   gcols=tapply(lgres$data$color,lgres$data$Grp,unique)
   resp=lgres$Resp
-  btfct<-function(x) x
-  if(lgres$Trans=="Log"){btfct<-function(x) exp(x)}
-  if(lgres$Trans=="SqRt") btfct<-function(x) x^2
-  if(lgres$Trans=="CuRt") btfct<-function(x) x^3
-  
+  ibtfct<-btfct(lgres$Trans,TRUE)
+  # function(x) x
+  # if(lgres$Trans=="Log"){btfct<-function(x) exp(x)}
+  # if(lgres$Trans=="SqRt") btfct<-function(x) x^2
+  # if(lgres$Trans=="CuRt") btfct<-function(x) x^3
+  # 
   f<-function(x) {min(which( x*10^(0:20)==floor(x*10^(0:20)) ))} 
   
   ###############
@@ -319,7 +321,7 @@ prepDiagLG<-function(lgres){
   tmpdata$Resp=round(tmpdata$Resp,ndigye)
   tmpdata$Fit=round(fitted(lgres$model,type="response"),ndigye)
   tmpdata$Resp_ori=round(tmpdata$Resp_ori,ndigy)
-  tmpdata$Fite=round(btfct(fitted(lgres$model,type="response")),ndigy)
+  tmpdata$Fite=round(ibtfct(fitted(lgres$model,type="response")),ndigy)
   tmpdata$resid=round(unclass(residuals(lgres$model,scale=T)),ndigye+2)
   lso=order(order(tmpdata$resid))
   tmpdata$qt=round(qnorm(ppoints(length(lso)))[lso],3)
@@ -333,9 +335,9 @@ prepDiagLG<-function(lgres){
   tmppred$y=round(tmppred$fit,ndigye)
   tmppred$ymin=round(tmppred$fit-qt(.975,tmppred$df)*tmppred$se.fit,ndigye)
   tmppred$ymax=round(tmppred$fit+qt(.975,tmppred$df)*tmppred$se.fit,ndigye)
-  tmppred$ybt=round(btfct(tmppred$fit),ndigy)
-  tmppred$ybtmin=round(btfct(tmppred$fit-qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
-  tmppred$ybtmax=round(btfct(tmppred$fit+qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
+  tmppred$ybt=round(ibtfct(tmppred$fit),ndigy)
+  tmppred$ybtmin=round(ibtfct(tmppred$fit-qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
+  tmppred$ybtmax=round(ibtfct(tmppred$fit+qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
   tmppred$Grp=factor(tmppred$Grp,levels=levels(tmpdata$Grp))
   
   ###################################
@@ -346,8 +348,8 @@ prepDiagLG<-function(lgres){
   ###############
   ## format axes
   limtp=pretty(tmpdata$Tp)
-  limyfit=pretty(c(tmppred$ymin,tmppred$ymax,tmpdata$Resp_ori,tmpdata$Fite))
-  limyfit0=pretty(c(tmpdata$Resp,tmppred$ybtmin,tmppred$ybtmax))
+  limyfit=pretty(c(tmppred$ybtmin,tmppred$ybtmax,tmpdata$Resp_ori,tmpdata$Fite)) ## original response/backT data
+  limyfit0=pretty(c(tmppred$ymin,tmppred$ymax,tmpdata$Resp,tmpdata$Fit)) ## model fit
   limxqq=range(c(tmpdata$resid,tmpdata$qt))
   limxqq=floor(limxqq[1]):ceiling(limxqq[2])
   

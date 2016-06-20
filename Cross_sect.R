@@ -90,69 +90,51 @@ sqrt_breaks <- function(n = 7) {
   }
 }
 
-btfct<-function(x=NULL,inv=FALSE){
-  
-  if(x=="None")  return(function(x) x)
-if(x=="Log" & !inv) return(function(x) log(x))
-  if(x=="Log" & inv) return(function(x) exp(x))
-  if(x=="SqRt" & inv) return(function(x) x^2)
-  if(x=="SqRt" & !inv) return(function(x) x^(1/2))
-  if(x=="CuRt" & inv) return(function(x) x^3)
-  if(x=="CuRt" & !inv) return(function(x) x^(1/3))
-  
-}
 
 
 ############################################################################################
 ### boxplot in server
-plotCS<-function(objres,miny=NA,maxy=NA,retplot=T){
+plotCS<-function(objres,miny=NA,maxy=NA,retplot=TRUE){
   
   idf=objres$Df
   gcols=tapply(idf$color,idf$Grp,unique)
-  
-  v=idf$Resp
-  ylim=range(v,na.rm=T)
-  ylim2=btfct(objres$Trans,FALSE)(c(miny,maxy))
-  if(!is.na(ylim2[1]) & !is.infinite(ylim2[1])) ylim[1]=ylim2[1]
-  if(!is.na(ylim2[2]) & !is.infinite(ylim2[2])) ylim[2]=ylim2[1]
-  
-#   if(objres$Trans=="Log") yaxt=log_breaks(n=7)(btfct(objres$Trans,TRUE)(ylim))
-#   if(objres$Trans%in%c("SqRt","CuRt")) yaxt=log_breaks(n=7)(btfct(objres$Trans,TRUE)(ylim))
-#   
-#   ylim=btfct(objres$Trans,FALSE)(yaxt)
-#   
+  if(is.na(miny)) miny=min(idf$Resp,na.rm=TRUE) 
+  if(is.na(maxy)) maxy=max(idf$Resp,na.rm=TRUE) 
+  ylim=c(miny,maxy)
   yaxt=pretty(ylim)
-
+  
   idf=idf[order(idf$Grp,idf$Id),]
   idf$x2=idf$x=as.numeric(idf$Grp)
   for(i in names(which(table(idf$x)>1)))
     idf$x2[idf$x==i]=swarmx(idf$x[idf$x==i],idf$Resp[idf$x==i],xsize=.08,ysize=.08,cex=2)[,1]
   
-   bwstats = setNames(as.data.frame(boxplot(Resp ~ Grp, data = idf, plot = F)$stats), nm = NULL)
-  bwstats=boxplot(Resp ~ Grp, data = idf, plot = F)$stats
+  bwstats = setNames(as.data.frame(boxplot(Resp ~ Grp, data = idf, plot = FALSE)$stats), nm = NULL)
+  bwstats=boxplot(Resp ~ Grp, data = idf, plot = FALSE)$stats
   bwdat=lapply(1:ncol(bwstats),function(i)
     list(x=i-1,low=bwstats[1,i],q1=bwstats[2,i],median=bwstats[3,i],q3=bwstats[4,i],high=bwstats[5,i],
          color=unname(gcols[i]),fillColor= '#F0F0E0',lineWidth= 2,
          medianColor=gcols[i],medianWidth=4,fillColor= "#F0F0F0"))
-
-   bwpts=lapply(1:nrow(idf),function(i) 
+  
+  bwpts=lapply(1:nrow(idf),function(i) 
     list(name=idf$Id[i],color=unname(idf$color[i]),type='scatter',
          data=list(list(x=idf$x2[i]-1,y=idf$Resp[i],grp=idf$Grp[i],Id=idf$Id[i],radius=8)),
          tooltipText=paste(idf$Id[i],':',idf$Resp[i]),marker=list(symbol='circle')))
   
-   if(!retplot) return(list(m=idf,ylim=ylim,title=objres$Par))
-
+  title=objres$Par
+  if(objres$Trans!="None") title=paste(title," (",objres$Trans,")",sep="")
+  if(!retplot) return(list(m=idf,ylim=ylim,yaxt=yaxt,title=title))
+  
   b <- Highcharts$new()
   b$set(series = append(list(list(name =objres$Resp,data = bwdat,tooltip=list(enabled=FALSE))),bwpts))
   b$xAxis(labels=list(rotation = -90),categories = levels(idf$Grp),title = list(text = 'Groups'))
   b$xAxis(categories = paste(levels(idf$Grp)," (",table(idf$Grp),")",sep="")
           ,title = list(text = 'Groups'))
-   b$legend(enabled = F)
-    b$tooltip( shared=FALSE,formatter = "#! function() { return this.series.options.tooltipText ; } !#")
-   b$plotOptions(followPointer=F)
+  b$legend(enabled = FALSE)
+  b$tooltip( shared=FALSE,formatter = "#! function() { return this.series.options.tooltipText ; } !#")
+  b$plotOptions(followPointer=FALSE)
   b$yAxis(title = list(text = objres$Par), min = min(yaxt), max = max(yaxt), tickPositions = yaxt)
   b$chart(type = 'boxplot')
-  return(list(plot=b,m=idf,ylim=ylim,yaxt=yaxt,title=objres$Par))
+  return(list(plot=b,m=idf,ylim=ylim,yaxt=yaxt,title=title))
 }
 
 
@@ -310,7 +292,8 @@ prepDiagCS<-function(csres){
   btfct<-function(x) x
   if(csres$Trans=="Log"){btfct<-function(x) exp(x)}
   if(csres$Trans=="Sqrt") btfct<-function(x) x^2
-
+  if(csres$Trans=="CuRt") btfct<-function(x) x^3
+  
    f<-function(x) {min(which( x*10^(0:20)==floor(x*10^(0:20)) )) - 1} 
   
    ###############
@@ -337,18 +320,18 @@ prepDiagCS<-function(csres){
   tmppred$x=as.numeric(tmppred$x)
   tmppred$color=gcols[as.character(tmppred$Grp)]
   tmppred$y=round(tmppred$fit,ndigye)
-  tmppred$ymin=round(tmppred$fit-qt(.975,tmppred$df)*tmppred$se.fit,ndigye)
-  tmppred$ymax=round(tmppred$fit+qt(.975,tmppred$df)*tmppred$se.fit,ndigye)
+  tmppred$ymin=round(tmppred$fit-1.96*tmppred$se.fit,ndigye)
+  tmppred$ymax=round(tmppred$fit+1.96*tmppred$se.fit,ndigye)
   tmppred$ybt=round(btfct(tmppred$fit),ndigy)
-  tmppred$ybtmin=round(btfct(tmppred$fit-qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
-  tmppred$ybtmax=round(btfct(tmppred$fit+qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
+  tmppred$ybtmin=round(btfct(tmppred$fit-1.96*tmppred$se.fit),ndigy)
+  tmppred$ybtmax=round(btfct(tmppred$fit+1.96*tmppred$se.fit),ndigy)
   tmppred$Grp=factor(tmppred$Grp,levels=levels(tmpdata$Grp))
   
   ###############
   ## format axes
   limtp=pretty(tmpdata$Tp)
-  limyfit=pretty(c(tmppred$ybtmin,tmppred$ybtmax,tmpdata$Resp_ori,tmpdata$Fite))
-  limyfit0=pretty(c(tmpdata$Resp,tmpdata$Fit,tmppred$ymin,tmppred$ymax))
+  limyfit=pretty(c(tmppred$ybtmin,tmppred$ybtmax,tmpdata$Resp_ori,tmpdata$Fite)) ## original response/backT data
+  limyfit0=pretty(c(tmppred$ymin,tmppred$ymax,tmpdata$Resp,tmpdata$Fit)) ## model fit
   limxqq=range(c(tmpdata$resid,tmpdata$qt))
   limxqq=floor(limxqq[1]):ceiling(limxqq[2])
   

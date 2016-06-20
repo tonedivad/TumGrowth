@@ -77,7 +77,7 @@ plotDiag<-function(datdiag,typplot="QQ-plot"){
   # format resid,fit
   if(typplot=="Resid/Fit"){
     tmpresf=datdiag$data[,c("resid","Fit" ,"Tp" ,"Grp","Id","color")]
-    if(nrow(tmpresf)>800) tmpresf=tmpresf[rev(order(-abs(tmpresf$resid))[1:800]),]
+    if(nrow(tmpresf)>800) tmpresf=tmpresf[rev(order(-abs(tmpresf$resid))[1:800]),] ## pb if number of points>1000
     names(tmpresf)[1:2]=c("y","x")
     limxqq=datdiag$limxqq
     limyfit=pretty(tmpresf$x)
@@ -107,7 +107,7 @@ plotDiag<-function(datdiag,typplot="QQ-plot"){
   
   if(typplot=="ResidBt/Fit"){
     tmpresf=datdiag$data[,c("resid","Fite" ,"Tp" ,"Grp","Id","color")]
-    if(nrow(tmpresf)>800) tmpresf=tmpresf[rev(order(-abs(tmpresf$resid))[1:800]),]
+    if(nrow(tmpresf)>800) tmpresf=tmpresf[rev(order(-abs(tmpresf$resid))[1:800]),] ## pb if number of points>1000
     names(tmpresf)[1:2]=c("x","y")
     limxqq=datdiag$limxqq
     limyfit0=datdiag$limyfit0

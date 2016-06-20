@@ -97,7 +97,7 @@ sumIdKM<-function(objres){
   add$N=sprintf("%d",add$N)
   add$Event=sprintf("%d",add$Event)
   add$MedSurv=sprintf("%.2f",add$MedSurv)
-add$MedFUP=sprintf("%.2f",survival:::survmean(survfit(Surv(Time,!Event)~Grp,ndf),1,"individual")$matrix[,"median"])
+  add$MedFUP=sprintf("%.2f",survival:::survmean(survfit(Surv(Time,!Event)~Grp,ndf),1,"individual")$matrix[,"median"])
   sumIds=data.frame(cbind(Group=names(v),add,"Censoring"=unlist(sapply(v,paste,collapse=" "))))
   sumIds
 }

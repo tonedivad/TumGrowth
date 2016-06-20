@@ -12,8 +12,6 @@ library(car)
 library(coxphf)
 library(beeswarm)
 library(DT)
-
-## add?
 library(rms)
 library(shinyjs)
 library(rmarkdown)
@@ -44,6 +42,21 @@ library(mgcv)
   pvt[which(pvs<=0.01)]="**"
   pvt[which(pvs<=0.001)]="***"
   pvt
+}
+
+
+##########################################################################
+## Transformation: inv=TRUE - backtransformation: inv=FALSE
+btfct<-function(x=NULL,inv=FALSE){
+  
+  if(x=="None")  return(function(x) x)
+  if(x=="Log" & !inv) return(function(x) log(x))
+  if(x=="Log" & inv) return(function(x) exp(x))
+  if(x=="SqRt" & inv) return(function(x) x^2)
+  if(x=="SqRt" & !inv) return(function(x) x^(1/2))
+  if(x=="CuRt" & inv) return(function(x) x^3)
+  if(x=="CuRt" & !inv) return(function(x) x^(1/3))
+  
 }
 
 ##########################################################################

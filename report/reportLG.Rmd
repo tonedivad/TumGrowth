@@ -84,7 +84,7 @@ par(mar = c(4, 4, 1, 1))
 ```
 
 
-Fitted
+Fitted (transformed data)
 -----------------------------------
 
 ```{r plot1, fig.height=4,echo=FALSE}
@@ -92,9 +92,11 @@ par(mar = c(4, 4, 1, 1))
     tmpdata=plotdata$data
     tmppred=plotdata$pred
     tmppred=tmppred[order(tmppred$Grp,tmppred$x),]
-         plot(range(plotdata$limtp),range(plotdata$limyfit),cex=0,
+    
+    plot(range(plotdata$limtp),range(plotdata$limyfit0),cex=0,
     xlab="Time",xlim=range(plotdata$limtp),
-    ylab="Fitted",ylim=range(plotdata$limyfit),axes=F)
+    ylab="Fitted",ylim=range(plotdata$limyfit0),axes=F)
+    
     axis(1,at=plotdata$limtp);axis(2,at=plotdata$limyfit,las=2)
     re=tapply(1:nrow(tmpdata),tmpdata$Id,function(x)
       lines(tmpdata$x[x],tmpdata$y[x],col=tmpdata$color[x][1]))
@@ -110,37 +112,84 @@ par(mar = c(4, 4, 1, 1))
            pt.cex=1.2,pch=15,bty="n",ncol=1)
 ```
 
-
-Residuals vs grp
+Fitted (back-transformed data)
 -----------------------------------
 
-```{r plot2, fig.height=4,fig.width=6,echo=FALSE}
+```{r plot2, fig.height=4,echo=FALSE}
 par(mar = c(4, 4, 1, 1))
-     tmpbxp=plotdata$data[,c("Id","resid","Grp","color")]
-  re=boxplot(resid~Id,tmpbxp,axes=F,cex=0,ylab="Pearson residuals",ylim=range(plotdata$limxqq))
-    legend("top",levels(tmpbxp$Grp),col=tapply(tmpbxp$color,tmpbxp$Grp,unique),
-           pt.cex=1.2,pch=15,bty="n",ncol=nlevels(tmpbxp$Grp))
-  abline(h=0)
-   axis(2,at=plotdata$limxqq,las=2)
-   for(i in 1:length(re$n)) axis(1,at=i,re$name[i],las=2,tick=F,ifelse(length(re$names)>5,0.6,1))
-  beeswarm(resid~Id,tmpbxp,add=T,pwcol=tmpbxp$color,pch=16)
+tmpdata=plotdata$data
+tmppred=plotdata$pred
+tmppred=tmppred[order(tmppred$Grp,tmppred$x),]
+
+plot(range(plotdata$limtp),range(plotdata$limyfit),cex=0,
+     xlab="Time",xlim=range(plotdata$limtp),
+     ylab="Fitted",ylim=range(plotdata$limyfit),axes=F)
+
+axis(1,at=plotdata$limtp);axis(2,at=plotdata$limyfit,las=2)
+re=tapply(1:nrow(tmpdata),tmpdata$Id,function(x)
+  lines(tmpdata$x[x],tmpdata$y[x],col=tmpdata$color[x][1]))
+
+re=tapply(1:nrow(tmppred),tmppred$Grp,function(x){
+  xl=tmppred$x[x];yl=tmppred$ybtmin[x];yh=tmppred$ybtmax[x]
+  polygon(c(xl,rev(xl),xl[1]),c(yl,rev(yh),yl[1]),border=NA,
+          col=adjustcolor(tmppred$color[x][1],alpha.f=0.3))})
+
+re=tapply(1:nrow(tmppred),tmppred$Grp,function(x)
+  lines(tmppred$x[x],tmppred$ybt[x],col=tmppred$color[x][1],lwd=3,typ="b"))
+legend("topleft",levels(tmppred$Grp),col=tapply(tmppred$color,tmppred$Grp,unique),
+       pt.cex=1.2,pch=15,bty="n",ncol=1)
+```
+
+Residuals vs animal ids
+-----------------------------------
+
+```{r plot3, fig.height=4,fig.width=6,echo=FALSE}
+par(mar = c(4, 4, 1, 1))
+tmpbxp=plotdata$data[,c("Id","resid","Grp","color")]
+re=boxplot(resid~Id,tmpbxp,axes=F,cex=0,ylab="Pearson residuals",ylim=range(plotdata$limxqq))
+legend("top",levels(tmpbxp$Grp),col=tapply(tmpbxp$color,tmpbxp$Grp,unique),
+       pt.cex=1.2,pch=15,bty="n",ncol=nlevels(tmpbxp$Grp))
+abline(h=0)
+axis(2,at=plotdata$limxqq,las=2)
+for(i in 1:length(re$n)) axis(1,at=i,re$name[i],las=2,tick=F,ifelse(length(re$names)>5,0.6,1))
+beeswarm(resid~Id,tmpbxp,add=T,pwcol=tmpbxp$color,pch=16)
 ```
 
 
 Residuals vs fit
 -----------------------------------
 
-```{r plot3, fig.height=4,echo=FALSE}
+```{r plot4, fig.height=4,echo=FALSE}
 par(mar = c(4, 4, 1, 1))
-  tmpresf=plotdata$data
+tmpresf=plotdata$data
+ndf=data.frame(Fit=seq(min(plotdata$limyfit0),max(plotdata$limyfit0),length=100))
+ndf=cbind(ndf,as.data.frame(predict(mgcv:::gam(resid~s(Fit),data=tmpresf),newdata=ndf,se=T)))
 
-     plot(range(plotdata$limxqq),range(plotdata$limxqq),cex=0,
-    xlab="Fitted",xlim=range(plotdata$limyfit0),
-    ylab="Pearson residuals",ylim=range(plotdata$limxqq),axes=F)
-          abline(h=0)
-
-    axis(1,at=plotdata$limyfit0);axis(2,at=plotdata$limxqq,las=2)
-    points(tmpresf$Fit,tmpresf$resid,col=tmpresf$color,pch=16)
+plot(range(plotdata$limxqq),range(plotdata$limxqq),cex=0,
+     xlab="Fitted",xlim=range(plotdata$limyfit0),
+     ylab="Pearson residuals",ylim=range(plotdata$limxqq),axes=F)
+abline(h=0)
+lines(ndf$Fit,ndf$fit)
+lines(ndf$Fit,ndf$fit+1.96*ndf$se.fit,lty=3)
+lines(ndf$Fit,ndf$fit-1.96*ndf$se.fit,lty=3)
+axis(1,at=plotdata$limyfit0);axis(2,at=plotdata$limxqq,las=2)
+points(tmpresf$Fit,tmpresf$resid,col=tmpresf$color,pch=16)
 ```
+
+Residuals vs time points
+-----------------------------------
+
+```{r plot5, fig.height=4,fig.width=6,echo=FALSE}
+par(mar = c(4, 4, 1, 1))
+tmpbxp=plotdata$data[,c("Tp","resid","Grp","color")]
+re=boxplot(resid~Tp,tmpbxp,axes=F,cex=0,ylab="Pearson residuals",ylim=range(plotdata$limxqq))
+legend("top",levels(tmpbxp$Grp),col=tapply(tmpbxp$color,tmpbxp$Grp,unique),
+       pt.cex=1.2,pch=15,bty="n",ncol=nlevels(tmpbxp$Grp))
+abline(h=0)
+axis(2,at=plotdata$limxqq,las=2)
+for(i in 1:length(re$n)) axis(1,at=i,re$name[i],las=1,tick=F,ifelse(length(re$names)>5,0.6,1))
+beeswarm(resid~Tp,tmpbxp,add=T,pwcol=tmpbxp$color,pch=16)
+```
+
 
 

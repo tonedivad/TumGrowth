@@ -1,11 +1,12 @@
 ---
 title: '`r paste("Cross-sectional analysis from ",ifile)`'
 output:
-html_document:
-theme: default
-toc: yes
-pdf_document:
-highlight: zenburn
+  html_document:
+    theme: default
+    toc: yes
+  pdf_document:
+    highlight: zenburn
+    toc: yes
 date: '`r paste("Compiled on ", format(Sys.time(), "%a %b %d %X %Y"))`'
 ---
 
@@ -52,12 +53,13 @@ Outliers: **`r louts`**
 
 Num. of animals: **`r anim`**
 
-```{r plot1, fig.height=5,fig.width=6,echo=FALSE}
+```{r plot1, fig.height=4,fig.width=6,echo=FALSE}
 par(mar = c(4, 4, 1, 1))
 cexpt=ifelse(exists('input$cscexpt'),as.numeric(input$cscexpt),1.2)
-exportCS(retplotcs,dogrps=F,cexpt=cexpt)
+exportCS(retplotcs,dogrps=FALSE,cexpt=cexpt,strict=FALSE)
 ```
 
+\clearpage
 
 Stats
 -----------------------------------
@@ -113,18 +115,18 @@ Residuals vs grp
 
 ```{r plot2, fig.height=4,fig.width=6,echo=FALSE}
 par(mar = c(4, 4, 1, 1))
-    tmpbxp=diagdata$data[,c("Id","resid","Grp","color")]
-    limxqq=diagdata$limxqq
-  re=boxplot(resid~Grp,tmpbxp,axes=F,cex=0,ylab="Pearson residuals",ylim=range(limxqq))
-  abline(h=0)
-   axis(2,at=limxqq,las=2)
-   for(i in 1:length(re$n)) axis(1,at=i,paste(re$name[i],"\n(",re$n[i],")",sep=""),
-                                 tick=F,cex.axis=ifelse(length(re$names)>5,0.6,1))
-  beeswarm(resid~Grp,tmpbxp,add=T,pwcol=tmpbxp$color,pch=16)
+tmpbxp=diagdata$data[,c("Id","resid","Grp","color")]
+limxqq=diagdata$limxqq
+re=boxplot(resid~Grp,tmpbxp,axes=F,cex=0,ylab="Pearson residuals",ylim=range(limxqq))
+abline(h=0)
+axis(2,at=limxqq,las=2)
+for(i in 1:length(re$n)) axis(1,at=i,paste(re$name[i],"\n(",re$n[i],")",sep=""),
+                              tick=F,cex.axis=ifelse(length(re$names)>5,0.6,1))
+beeswarm(resid~Grp,tmpbxp,add=T,pwcol=tmpbxp$color,pch=16)
 ```
 
 
-Residuals vs fit
+Residuals (transformed data) vs fit
 -----------------------------------
 
 ```{r plot3, fig.height=4,echo=FALSE}
@@ -145,12 +147,12 @@ par(mar = c(4, 4, 1, 1))
 
 \clearpage
 
-Data:
+Data
 -----------------------------------
 ```{r table5, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
 require(pander)
 panderOptions('table.split.table', Inf)
-dat=csres$data[,c( "Tp","Id","Resp", "Grp" ,"out"  )]
+dat=csres$data[,c( "Tp","Id","Resp","Resp_ori", "Grp" ,"out"  )]
 dat=dat[order(dat$Grp,dat$Id),]
 rownames(dat)=NULL
 pander(dat)

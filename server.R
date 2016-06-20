@@ -557,7 +557,7 @@ shinyServer(function(input, output, session) {
   
 
   #########################################################################################################################
-  ####### Export reports
+  ####### Reportting
   
   output$exporttxtDS<-downloadHandler(
     filename = function() paste(fileData()$Ori,"-data.tsv",sep=""),
@@ -637,8 +637,8 @@ shinyServer(function(input, output, session) {
       csres=modelCS()
       formatpw=modelCSpw()
       diagdata=prepDiagCS(csres)
-      retplotcs=plotCS(objres,
-                miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy),retplot=FALSE)
+      retplotcs=plotCS(objres,retplot=FALSE,
+                miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy))
       #########
       out <- render('reportCS.Rmd', switch(
         input$formatCS,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()

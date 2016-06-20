@@ -79,9 +79,9 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
   #ndigit=max(1,ndigit)
   
   whichtps=grep("^[0-9]+$",tmp[[1]])
-  if(length(whichgrp)==0) stop('No numerical time labels found on line 1')
+ # if(length(whichgrp)==0) stop('No numerical time labels found on line 1')
   whichgrp=grep("^[group]+$",tolower(tmp[[1]]))[1]
-  if(length(whichgrp)==0) stop('No group label found on line 1')
+#  if(length(whichgrp)==0) stop('No group label found on line 1')
   whichid=grep("^[MIDmid]+$",tmp[[1]])
   if(length(whichid)>1) whichid=whichid[1]
   whichsurv=grep("^[survSurv]+$",tmp[[1]])

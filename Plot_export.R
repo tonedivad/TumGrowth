@@ -67,17 +67,19 @@ exportTC<-function(h1,dogrps=TRUE,type='tc'){
 }
 
 ##################################################################################################
-exportCS<-function(p1,dogrps=TRUE,cexpt=1.2){
+### Export CS boxplot - dogrps=TRUE, will add tags for each group of points, useful when export to SVG
+exportCS<-function(p1,dogrps=TRUE,cexpt=1.2,strict=TRUE){
   
   idf=p1$m
   ylim=p1$ylim
+  yaxt=p1$yaxt
   ylab=p1$title
+  if(!strict) ylim=range(ylim,yaxt)
   rm(list="p1")
   xlim=c(0.4,nlevels(idf$Grp)+.6)
-  re=boxplot(idf$Resp~idf$Grp,pch=16,cex=0,axes=F,ylim=range(ylim),lwd=par('lwd'),lty=1,
-             ylab=ylab,
+  re=boxplot(idf$Resp~idf$Grp,pch=16,cex=0,axes=F,lwd=par('lwd'),lty=1,ylab=ylab,
              border=tapply(idf$color,idf$Grp,unique)[levels(idf$Grp)],medlwd=par('lwd'),
-             xlim=xlim)
+             ylim=ylim,xlim=xlim)
   
   segments(xlim[1],min(ylim),xlim[2],min(ylim))
   re2=beeswarm(idf$Resp~idf$Grp,pch=16,at=1:nlevels(idf$Grp),pwcex = rep(cexpt,nrow(idf)),
@@ -95,8 +97,7 @@ exportCS<-function(p1,dogrps=TRUE,cexpt=1.2){
   if(dogrps)   graphics:::text(nlevels(idf$Grp)*.52,mean(ylim[-1])*.92,"Gend")
   
   if(dogrps)   graphics:::text(nlevels(idf$Grp)*.49,mean(ylim[-1])*.8,"Gst")
-  axis(2,at=ylim,pos=xlim[1],las=2,lwd=2,tick=F)
-  axis(2,at=ylim,pos=xlim[1],lwd=2,labels = rep("",length(ylim)))
+  axis(2,at=yaxt,pos=xlim[1],las=2,lwd=2)
   if(dogrps)   graphics:::text(nlevels(idf$Grp)*.42,mean(ylim[-1])*.92,"Gend")
   
 }

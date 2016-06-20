@@ -1,3 +1,7 @@
+
+##########################################################################################
+# old gls/lme based modelling
+##########################################################################################
 .inlme<-function(lgdf,checkvar=TRUE,pthr=0.05,control=lmeControl()){
   
   ga=lme(lgdf,fixed=Resp~Tp*Grp,subset=!out,random=~1|Id,method="REML",control=control)
