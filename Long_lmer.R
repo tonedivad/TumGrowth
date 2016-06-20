@@ -1,23 +1,6 @@
-.makeOnepw<-function(x,K){
-  
-  jtab2=doBy:::LSmeans(x,K=K,adjust=TRUE)[[1]]
-  upc=jtab2[,"estimate"]+jtab2[,"se"]*qt(0.975,df=jtab2[,"df"])
-  loc=jtab2[,"estimate"]-jtab2[,"se"]*qt(0.975,df=jtab2[,"df"])
-  
-  jtab=data.frame(do.call("rbind",strsplit(rownames(jtab2)," - ")),
-                  cbind(jtab2[,c("t.stat","se","df","p.value","estimate"),drop=FALSE],loc,upc),stringsAsFactors=F)
-  names(jtab)=c("Largest","Smallest","Tstat","SE","Df","Pvalue","Contrast","Lower","Upper")
-  for(i in which(jtab$Contrast<0)){
-    jtab[i,c("Largest","Smallest")]=jtab[i,c("Smallest","Largest")]
-    jtab[i,c("Lower","Upper")]=-jtab[i,c("Upper","Lower")]
-    jtab[i,c("Tstat","Contrast")]=-jtab[i,c("Tstat","Contrast")]
-  }
-  rownames(jtab)=NULL
-  return(jtab)
-}
 
 ################################################################################################
-### Compute LG
+### Compute LG: piecewise model
 compModLGpw<-function(lgmat,bfco=0.1,tpcut=NA,adjust=TRUE){
   
   lgdf=lgmat$Df
@@ -154,6 +137,8 @@ compModLGpw<-function(lgmat,bfco=0.1,tpcut=NA,adjust=TRUE){
               data=lgdf,pred=newdf,Resp=lgmat$Resp,Trans=lgmat$Trans,Type='piecewise'))
 }
 
+################################################################################################
+### Compute LG: linear model
 compModLG<-function(lgmat,bfco=0.1,adjust=TRUE){
   
   lgdf=lgmat$Df
@@ -164,8 +149,6 @@ compModLG<-function(lgmat,bfco=0.1,adjust=TRUE){
   # jt1=cbind(0,0,ct,matrix(0,nrow=nrow(ct),ncol=ncol(ct)))
   # jt2=cbind(0,0,matrix(0,nrow=nrow(ct),ncol=ncol(ct)),ct)
   
-  ######
-  #  print("OKKK")
   lfms=list(as.formula(Resp~Tp+Grp+Tp:Grp+(1|Id)),
             as.formula(Resp~Tp+Grp+Grp:Tp+(1|Id)+(0+Tp|Id)),
             as.formula(Resp~Tp+Grp+Tp:Grp+(Tp|Id)))
@@ -180,7 +163,6 @@ compModLG<-function(lgmat,bfco=0.1,adjust=TRUE){
   ga=lmerTest::lmer(lfms[[minAIC]], data=lgdf,subset=!out,REML=TRUE)
 #  lme(Resp ~ Tp + Grp + Tp:Grp,random=~Id,correlation=corCAR1(form=~Tp), data=lgdf)
   iresid=residuals(ga,scale=T)
-#  print(bfco)
   out=outlierTest(lm(iresid~1),cutoff = bfco)
   if(any(out$signif)){
     lgdf$out[which(rownames(lgdf)%in%names(out$bonf.p))]=T
@@ -247,11 +229,29 @@ compModLG<-function(lgmat,bfco=0.1,adjust=TRUE){
 }
 
 
-################################################################################################
-### Format pairwises
-
-formatLGpw<-function(lgres,ref='All',backtrans=F){
+####################################
+## Compute contrasts given matrix K
+.makeOnepw<-function(x,K){
   
+  jtab2=doBy:::LSmeans(x,K=K,adjust=TRUE)[[1]]
+  upc=jtab2[,"estimate"]+jtab2[,"se"]*qt(0.975,df=jtab2[,"df"])
+  loc=jtab2[,"estimate"]-jtab2[,"se"]*qt(0.975,df=jtab2[,"df"])
+  
+  jtab=data.frame(do.call("rbind",strsplit(rownames(jtab2)," - ")),
+                  cbind(jtab2[,c("t.stat","se","df","p.value","estimate"),drop=FALSE],loc,upc),stringsAsFactors=F)
+  names(jtab)=c("Largest","Smallest","Tstat","SE","Df","Pvalue","Contrast","Lower","Upper")
+  for(i in which(jtab$Contrast<0)){
+    jtab[i,c("Largest","Smallest")]=jtab[i,c("Smallest","Largest")]
+    jtab[i,c("Lower","Upper")]=-jtab[i,c("Upper","Lower")]
+    jtab[i,c("Tstat","Contrast")]=-jtab[i,c("Tstat","Contrast")]
+  }
+  rownames(jtab)=NULL
+  return(jtab)
+}
+
+################################################################################################
+### Format pairwise comparison table given the Reference - back transformation to be added soon
+formatLGpw<-function(lgres,ref='All',backtrans=F){
   
   btfct<-function(x) x;collab="Difference"
   # if(lgres$Trans=="Log" & backtrans){btfct<-function(x) exp(x);collab='Ratio'}
@@ -275,13 +275,13 @@ formatLGpw<-function(lgres,ref='All',backtrans=F){
     sprintf("%.3f [%.3f;%.3f]",btfct(x[1]),btfct(x[2]),btfct(x[3])))
   
   top=data.frame(pwt[,c("Largest","Smallest"),drop=F],Contrast=dcts,Df=sprintf('%.2f',pwt[,"Df"]),
-                 Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),stringsAsFactors=F)
+                 Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),stringsAsFactors=FALSE)
   if("Segment"%in%colnames(pwt)){
     lsegs=tapply(lgres$pred$Tp,(lgres$pred$Tp2>0)+1,function(x) paste(range(x),collapse="-"))[c("1","2")]
 #    print(str(lsegs))
     tsegs=as.vector(lsegs[as.character(pwt$Segment)])
     top=data.frame(TimeSeg= tsegs,pwt[,c("Largest","Smallest"),drop=F],Contrast=dcts,Df=sprintf('%.2f',pwt[,"Df"]),
-                   Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),stringsAsFactors=F)
+                   Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),stringsAsFactors=FALSE)
   }
   
    if(length(ref)==1){
@@ -296,7 +296,7 @@ formatLGpw<-function(lgres,ref='All',backtrans=F){
 
 
 ################################################################################################
-### Diagplots
+### prep data for plotDiag function
 prepDiagLG<-function(lgres){
   
   gcols=tapply(lgres$data$color,lgres$data$Grp,unique)
@@ -338,10 +338,10 @@ prepDiagLG<-function(lgres){
   tmppred$ybtmax=round(btfct(tmppred$fit+qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
   tmppred$Grp=factor(tmppred$Grp,levels=levels(tmpdata$Grp))
   
-  ###############
-  ## acf
-#   iresid=residuals(lgres$model,scale=T)
-#   acfres=do.call("cbind",unclass(acf(iresid,plot=FALSE))[c("lag","acf")])
+  ###################################
+  ## acf: autocorrelation to be added
+  # iresid=residuals(lgres$model,scale=T)
+  # acfres=do.call("cbind",unclass(acf(iresid,plot=FALSE))[c("lag","acf")])
   
   ###############
   ## format axes
@@ -354,4 +354,81 @@ prepDiagLG<-function(lgres){
   class(tmpdata)=class(tmppred)= "data.frame"
   return(list(data=tmpdata,pred=tmppred,limtp=limtp,limyfit=limyfit,limyfit0=limyfit0,limxqq=limxqq,Resp=lgres$Resp,Trans=lgres$Trans,Type=lgres$Type))
 }
+
+# ##################################################################################
+# ### Additional function for hockey stick-> yet to be done
+# .hockey <- function(x,alpha1,beta1,beta2,brk,eps=diff(range(x))/100)
+#   ## alpha1 is the intercept of the left line segment
+#   ## beta1 is the slope of the left line segment
+#   ## beta2 is the slope of the right line segment
+#   ## brk is location of the break point
+#   ## 2*eps is the length of the connecting quadratic piece
+#   
+#   ## reference: Bacon & Watts "Estimating the Transition Between
+#   ## Two Intersecting Straight Lines", Biometrika, 1971
+#   
+#   ## Original function coded by Mary Lindstrom
+#   ## <lindstro@biostat.wisc.edu> and taken from
+# ## S-NEWS Archive (Mon, 24 Apr 2000) available
+# ## from (http://lib.stat.cmu.edu/s-news/Burst/15642). 
+# {
+#   x1 <- brk-eps
+#   x2 <- brk+eps
+#   b <- (x2*beta1-x1*beta2)/(2*eps)
+#   cc <- (beta2-b)/(2*x2)
+#   a <- alpha1+beta1*x1-b*x1-cc*x1^2
+#   alpha2 <- (a + b*x2 + cc*x2^2) - beta2*x2
+#   
+#   lebrk <- (x <= x1)
+#   gebrk <- (x >= x2)
+#   eqbrk <- (x > x1 & x < x2)
+#   
+#   result <- rep(0,length(x))
+#   result[lebrk] <- alpha1 + beta1*x[lebrk]
+#   result[eqbrk] <- a + b*x[eqbrk] + cc*x[eqbrk]^2
+#   result[gebrk] <- alpha2 + beta2*x[gebrk]
+#   result
+# }
+# 
+# #--------------------------------------------------------------------------------------------required for mergeScans
+# getInitPars <- function(x,y)
+# {
+#   lowLeg <- (x <= quantile(x,probs=0.5))
+#   init.lsfit <- lm(y~x, subset=lowLeg)$coef
+#   b0 <- init.lsfit[1]; b1 <- init.lsfit[2];
+#   init.lsfit2 <- lm(y~x, subset=!lowLeg)$coef
+#   b2 <- init.lsfit2[2];
+#   b3=-(init.lsfit[1]-init.lsfit2[1])/(init.lsfit[2]-init.lsfit2[2])
+#   return(c(b0, b1, b2, b3))
+# }
+# 
+# findThreshold <- function(x,y)
+# {
+#   n <- length(x)
+#   y=y[order(x)]
+#   x=x[order(x)]
+#   pars <- getInitPars(x=x,y=y)
+#   ###########################################           
+#   #           if(pars[1]>10)pars[1]<-7
+#   #           if(pars[4]>200)pars[4]<-190
+#   #           print(pars);
+#   ######################################
+#   alpha1 <- pars[1]; beta1 <- pars[2]; beta2 <- pars[3];
+#   brk <- pars[4];
+#   
+#   fit1 <- nls(y ~ .hockey(x=x,alpha1,beta1,beta2,brk),
+#               start=list(alpha1=alpha1,beta1=beta1,beta2=beta2,brk=brk),
+#               control=nls.control(maxiter=100))
+#   resid.scale <- sqrt(fit1$m$deviance()/(n-4))
+#   yhat <- fit1$m$fitted()
+#   Coeff <- fit1$m$getPars()
+#   # cat("\nCoefficients are: ",Coeff,"\n")
+#   brk <- Coeff[4]; beta2 <- Coeff[3]; beta1 <- Coeff[2]; alpha1 <- Coeff[1];
+#   Saturated <- y >= -(x - alpha1*beta1 - brk*(beta1*beta1 + 1))/beta1
+#   # Saturated <- Saturated | (x >= brk)
+#   high.row <- c(1:length(x))[Saturated]
+#   High.fit <- alpha1 + beta1*x[high.row]
+#   return(list(x=x,y=y,yhat=yhat,high.row=high.row,resid.scale = resid.scale,
+#               High.fit=High.fit))
+# }
 

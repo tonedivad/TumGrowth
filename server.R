@@ -2,13 +2,15 @@ require(rCharts)
 require(shiny)
 library(shinyFiles)
 
-source("helpers.R")
-source("files.R")
-source("longlmer.R")
-source("km.R")
-source("cs.R")
-source("lchart.R")
-source("plotexport.R")
+source("helpers.R") ## common fcts
+
+source("File_fct.R") ## file I/O
+source("Plot_diag.R") ## generic diagnostic plto fct
+source("Line_chart.R") ## line chart panel
+source("Long_lmer.R")  ## longitudinal panel
+source("Surv_km.R") ## survival panel
+source("Cross_sect.R") ## cross-sectional panel
+source("Plot_export.R") ## reporting functions
 
 
 options(shiny.maxRequestSize = 200*1024^2)

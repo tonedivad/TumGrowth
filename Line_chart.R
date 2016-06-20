@@ -1,5 +1,5 @@
 ################################################################################################
-## plot line charts
+## Forming the dataframe for plotting LC and computing the lme model
 getLGmat<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),
                    gcols=getCols(cdat$dataM$Grp),trans='None'){
   
@@ -20,29 +20,6 @@ getLGmat<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),
   return(list(Df=df,Resp=resp,Trans=trans))
 }
 
-getLGmat2<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),
-                   gcols=getCols(cdat$dataM$Grp)){
-  
-  if(length(lgrps)==0) lgrps=levels(cdat$dataM$Grp)
-  lmids=cdat$dataM$Id[cdat$dataM$Use & cdat$dataM$Grp%in%lgrps]
-  
-  l=which(cdat$data$Id%in%lmids & !is.na(cdat$data[,resp]))
-  df=cdat$data[l,c("Id","Tp",resp)]
-  names(df)=c("Id","Tp","Resp")
-  
-  iresp=paste(resp,c("log","sqrt","curt"),sep=".")
-  iresp= iresp[iresp%in%names(cdat$data)]
-  nresp=gsub(paste("^",resp,"\\.",sep=""),"Resp_",iresp)
-  df[,nresp]=cdat$data[l,iresp]
-  
-  df$Grp=factor(cdat$dataM[df$Id,]$Grp)
-  idlevs=unlist(tapply(as.character(df$Id),df$Grp,unique))
-  df$Id=factor(df$Id,levels=idlevs)
-  df$color=gcols[as.character(df$Grp)]
-  df=df[order(df$Grp,df$Id,df$Tp),]
-  
-  return(list(Df=df,Resp=resp,Trans=gsub(paste("^",resp,"\\.",sep=""),"",iresp)))
-}
 
 plotLineC<-function(lgdata,type=c('tc','mese'),force2zero=FALSE,defzero=NA,miny=NA,maxy=NA){
   
@@ -123,3 +100,28 @@ plotLineC<-function(lgdata,type=c('tc','mese'),force2zero=FALSE,defzero=NA,miny=
   
 }
 
+# ############################################################################
+# ## Old
+# getLGmat2<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),
+#                     gcols=getCols(cdat$dataM$Grp)){
+#   
+#   if(length(lgrps)==0) lgrps=levels(cdat$dataM$Grp)
+#   lmids=cdat$dataM$Id[cdat$dataM$Use & cdat$dataM$Grp%in%lgrps]
+#   
+#   l=which(cdat$data$Id%in%lmids & !is.na(cdat$data[,resp]))
+#   df=cdat$data[l,c("Id","Tp",resp)]
+#   names(df)=c("Id","Tp","Resp")
+#   
+#   iresp=paste(resp,c("log","sqrt","curt"),sep=".")
+#   iresp= iresp[iresp%in%names(cdat$data)]
+#   nresp=gsub(paste("^",resp,"\\.",sep=""),"Resp_",iresp)
+#   df[,nresp]=cdat$data[l,iresp]
+#   
+#   df$Grp=factor(cdat$dataM[df$Id,]$Grp)
+#   idlevs=unlist(tapply(as.character(df$Id),df$Grp,unique))
+#   df$Id=factor(df$Id,levels=idlevs)
+#   df$color=gcols[as.character(df$Grp)]
+#   df=df[order(df$Grp,df$Id,df$Tp),]
+#   
+#   return(list(Df=df,Resp=resp,Trans=gsub(paste("^",resp,"\\.",sep=""),"",iresp)))
+# }

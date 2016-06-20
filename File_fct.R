@@ -1,3 +1,5 @@
+##############################################################################################
+## Perform several options to clean-up the orginal datafile
 verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE){
   
   df$IdTp=paste(df$tp,df$Id,sep=";;")
@@ -7,7 +9,7 @@ verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE){
   ## combine repeated meas at the same Tp
   if(any(table(df$IdTp)>1)){
     ldups=names(which(table(df$IdTp)>1))
-    #     cat("Duplicated time points:",ldups,"\n")
+    #cat("Duplicated time points:",ldups,"\n")
     newx=tapply(df$X,df$IdTp,median,na.rm=T)
     df=df[match(names(newx),df$IdTp),]
     df$X=newx[df$IdTp]
@@ -19,7 +21,7 @@ verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE){
   ## Exclude trailing zeros/NAs
   if(trimzer){
     l2rm=NULL
-    ## only use mices that do not make it
+    ## only use animals that do not  survive at the end: dfm$Surv=FALSE
     lmids2chk=unique(df$Id)
     lmids2chk=lmids2chk[lmids2chk%in%dfm$Id[!dfm$Surv]]
     for(ipid in lmids2chk){
@@ -34,20 +36,21 @@ verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE){
   }
   
   ####################################
-  ## Sum at same Id/Tp to revisit
-#  if(sumids & max(rowSums(table(df$IdoTp,df$Grp)>0))==1){
-#     df=data.frame(X=tapply(df$X,df$IdoTp,function(x) ifelse(all(is.na(x)),NA,sum(x,na.rm=T))),
-#                   Id=tapply(df$Idold,df$IdoTp,unique),
-#                   tp=tapply(df$tp,df$IdoTp,unique),Grp=tapply(df$Grp,df$IdoTp,unique),
-#                   stringsAsFactors = F)
-#     df=df[order(df$Grp,df$Id,df$tp),]
-#     names(grps)=names(use)=uidsold
-#   }
+  ## Sum at same Id/Tp need to be revisited for future versions
+  #  if(sumids & max(rowSums(table(df$IdoTp,df$Grp)>0))==1){
+  #     df=data.frame(X=tapply(df$X,df$IdoTp,function(x) ifelse(all(is.na(x)),NA,sum(x,na.rm=T))),
+  #                   Id=tapply(df$Idold,df$IdoTp,unique),
+  #                   tp=tapply(df$tp,df$IdoTp,unique),Grp=tapply(df$Grp,df$IdoTp,unique),
+  #                   stringsAsFactors = F)
+  #     df=df[order(df$Grp,df$Id,df$tp),]
+  #     names(grps)=names(use)=uidsold
+  #   }
   
   ####################################
   ## Remove same values from the end
   if(trim){
     l2rm=NULL
+    ## only use animals that do not  survive at the end: dfm$Surv=FALSE
     lmids2chk=unique(df$Id)
     lmids2chk=lmids2chk[lmids2chk%in%dfm$Id[!dfm$Surv]]
     for(ipid in lmids2chk){
@@ -67,6 +70,7 @@ verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE){
 }
 
 #############################################################################################
+## Parse the orginal datafile
 loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TRUE,exclzer=FALSE,set2surv=FALSE){
 
   tmp=suppressMessages(strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw",quiet=TRUE)),"\t"))
@@ -75,7 +79,9 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
   #ndigit=max(1,ndigit)
   
   whichtps=grep("^[0-9]+$",tmp[[1]])
+  if(length(whichgrp)==0) stop('No numerical time labels found on line 1')
   whichgrp=grep("^[group]+$",tolower(tmp[[1]]))[1]
+  if(length(whichgrp)==0) stop('No group label found on line 1')
   whichid=grep("^[MIDmid]+$",tmp[[1]])
   if(length(whichid)>1) whichid=whichid[1]
   whichsurv=grep("^[survSurv]+$",tmp[[1]])
@@ -122,8 +128,6 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
                  Use=tapply(isuse,uids,function(x) unique(x)[1]),
                  Surv=tapply(issurv,uids,function(x) unique(x)[1]),
                  stringsAsFactors=FALSE)
-  #print(dfm)
-  
   ####################################################################################
   ## get the meas data
   if(length(whichtps)>1)  mat=t(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))))
@@ -152,10 +156,9 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
     names(df2)[1]=imeas
     allmeas[[imeas]]=df2
    }
-  #print(dfm)
-  
-  ###
-  # Cmb all
+
+  #####################
+  # Combine them all
   umeas=unique(unlist(lapply(allmeas,rownames)))
   
   df=data.frame(sapply(allmeas,function(x) x[match(umeas,rownames(x)),1]),stringsAsFactors = F)
@@ -220,7 +223,8 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
 ########################################################################################################################
 ########################################################################################################################
 
-#############################################################################################
+########################################################################################################################
+## Export the parsed datafile
 downloadFile<-function(cdat,ndigit=4,trans=T){
   
   dat=cdat$data
