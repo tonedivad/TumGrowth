@@ -1,37 +1,127 @@
+############################################################
+### functions for CS analysis
+# getCSmat: prepare data
+# plotCS: boxplot in server
+# compCS: compute CS model
+# formatCSpw: format CS for the reactive
+# prepDiagCS: prepare data for diagnostic plots
+############################################################
 
-getCSmat<-function(df,dfm,resp=names(df)[1],lgrps=levels(dfm$Grp),rangetp=range(df$Tp),usemax=FALSE){
+
+############################################################
+## format the data
+getCSmat<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),gcols=getCols(cdat$dataM$Grp),
+                   trans='None',rangetp=range(cdat$data$Tp),usemax=FALSE){
   
 
-  lmids=dfm$Id[dfm$Use & dfm$Grp%in%lgrps]
-  df$Resp=df[,resp]
-  l=which(df$Id%in%lmids & !is.na(df$Resp) & df$Tp>=min(rangetp)  & df$Tp<=max(rangetp))
+  lmids=cdat$dataM$Id[cdat$dataM$Use & cdat$dataM$Grp%in%lgrps]
+  iresp=resp
+  if(trans!='None') iresp=paste(resp,tolower(trans),sep=".")
   
-  df=df[l,]
+
+  l=which(cdat$data$Id%in%lmids & !is.na(cdat$data[,iresp]) & cdat$data$Tp>=min(rangetp)  & cdat$data$Tp<=max(rangetp))
+  
+  df=cdat$data[l,c("Id","Tp",iresp,resp)]
+  names(df)=c("Id","Tp","Resp","Resp_ori")
   df=df[order(df$Id,df$Tp),]
   l2use=tapply(1:nrow(df),df$Id,function(x) rev(x)[1])
   if(usemax) l2use=tapply(1:nrow(df),df$Id,function(x) x[which.max(df$Resp[x])])
   df=df[l2use,]
-  df$Grp=factor(dfm[df$Id,]$Grp)
+  df$Grp=factor(cdat$dataM[df$Id,]$Grp)
+  df$color=gcols[as.character(df$Grp)]
   newrange=range(df$Tp)
   if(newrange[1]<newrange[2]) ylab=paste(ifelse(usemax,"Max. r","R"),"esponse in time range: ",newrange[1],"-",newrange[2],sep="")
   if(newrange[1]==newrange[2]) ylab=paste("Response at time=",newrange[1],sep="")
 
-  return(list(Df=df,Resp=resp,Par=ylab))
+  return(list(Df=df,Resp=resp,Trans=trans,Par=ylab))
+}
+############################################################################################
+
+log_breaks <- function(n = 7) {
+  function(x) {
+    rng <- log10(range(x, na.rm = TRUE))
+    min <- floor(rng[1])
+    max <- ceiling(rng[2])
+    
+#     if (max == min) return(10^(min))
+    
+    by <- floor((max - min) / n) + 1
+    yaxt=10^(seq(min, max, by = by))
+    if(length(yaxt)>=n) return(yaxt)
+    
+    yaxtn=sort(rep(yaxt,2)*rep(c(1,2),each=length(yaxt)))
+    l=range(which(log10(yaxtn)>rng[1] & log10(yaxtn)<rng[2]))
+    l[1]=max(1,l[1]-1);l[2]=min(length(yaxtn),l[2]+1)
+    yaxtn=yaxtn[l[1]:l[2]]
+    if(length(yaxtn)<n){
+      yaxtn=sort(rep(yaxt,3)*rep(c(1,2,5),each=length(yaxt)))
+      l=range(which(log10(yaxtn)>rng[1] & log10(yaxtn)<rng[2]))
+      l[1]=max(1,l[1]-1);l[2]=min(length(yaxtn),l[2]+1)
+      yaxtn=yaxtn[l[1]:l[2]]
+    }
+    yaxtn
+  }
 }
 
 
+sqrt_breaks <- function(n = 7) {
+  function(x) {
+    rng <- sqrt(range(x, na.rm = TRUE))
+    min <- floor(rng[1])
+    max <- ceiling(rng[2])
+    
+    #     if (max == min) return(10^(min))
+    
+    by <- floor((max/min) / n) + 1
+    yaxt=(seq(min, max, by = by))^2
+    if(length(yaxt)>=n) return(yaxt)
+    
+    yaxtn=sort(rep(yaxt,2)*rep(c(1,2),each=length(yaxt)))
+    l=range(which(log10(yaxtn)>rng[1] & log10(yaxtn)<rng[2]))
+    l[1]=max(1,l[1]-1);l[2]=min(length(yaxtn),l[2]+1)
+    yaxtn=yaxtn[l[1]:l[2]]
+    if(length(yaxtn)<n){
+      yaxtn=sort(rep(yaxt,3)*rep(c(1,2,5),each=length(yaxt)))
+      l=range(which(log10(yaxtn)>rng[1] & log10(yaxtn)<rng[2]))
+      l[1]=max(1,l[1]-1);l[2]=min(length(yaxtn),l[2]+1)
+      yaxtn=yaxtn[l[1]:l[2]]
+    }
+    yaxtn
+  }
+}
+
+btfct<-function(x=NULL,inv=FALSE){
+  
+  if(x=="None")  return(function(x) x)
+if(x=="Log" & !inv) return(function(x) log(x))
+  if(x=="Log" & inv) return(function(x) exp(x))
+  if(x=="SqRt" & inv) return(function(x) x^2)
+  if(x=="SqRt" & !inv) return(function(x) x^(1/2))
+  if(x=="CuRt" & inv) return(function(x) x^3)
+  if(x=="CuRt" & !inv) return(function(x) x^(1/3))
+  
+}
+
 
 ############################################################################################
-plotCS<-function(objres,gcols=getCols(objres$Df$Grp),miny=NA,maxy=NA,retplot=T){
+### boxplot in server
+plotCS<-function(objres,miny=NA,maxy=NA,retplot=T){
   
   idf=objres$Df
-  idf$color=gcols[idf$Grp]
-  gcols=gcols[gcols%in%idf$color]
-  ylim=range(idf$Resp,na.rm=T)
-  if(!is.na(miny)) ylim[1]=miny
-  if(!is.na(maxy)) ylim[2]=maxy
-  ylim=pretty(seq(ylim[1],ylim[2],length.out = 8))
-#  if(all(idf$Resp>0,na.rm=T)) ylim[1]=max(0,ylim[1])
+  gcols=tapply(idf$color,idf$Grp,unique)
+  
+  v=idf$Resp
+  ylim=range(v,na.rm=T)
+  ylim2=btfct(objres$Trans,FALSE)(c(miny,maxy))
+  if(!is.na(ylim2[1]) & !is.infinite(ylim2[1])) ylim[1]=ylim2[1]
+  if(!is.na(ylim2[2]) & !is.infinite(ylim2[2])) ylim[2]=ylim2[1]
+  
+#   if(objres$Trans=="Log") yaxt=log_breaks(n=7)(btfct(objres$Trans,TRUE)(ylim))
+#   if(objres$Trans%in%c("SqRt","CuRt")) yaxt=log_breaks(n=7)(btfct(objres$Trans,TRUE)(ylim))
+#   
+#   ylim=btfct(objres$Trans,FALSE)(yaxt)
+#   
+  yaxt=pretty(ylim)
 
   idf=idf[order(idf$Grp,idf$Id),]
   idf$x2=idf$x=as.numeric(idf$Grp)
@@ -60,23 +150,23 @@ plotCS<-function(objres,gcols=getCols(objres$Df$Grp),miny=NA,maxy=NA,retplot=T){
    b$legend(enabled = F)
     b$tooltip( shared=FALSE,formatter = "#! function() { return this.series.options.tooltipText ; } !#")
    b$plotOptions(followPointer=F)
-  b$yAxis(title = list(text = objres$Par), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
+  b$yAxis(title = list(text = objres$Par), min = min(yaxt), max = max(yaxt), tickPositions = yaxt)
   b$chart(type = 'boxplot')
-  return(list(plot=b,m=idf,ylim=ylim,title=objres$Par))
+  return(list(plot=b,m=idf,ylim=ylim,yaxt=yaxt,title=objres$Par))
 }
 
 
 ##########################################################################################
 compCS<-function(objres,bfco=0.1,checkvar=TRUE){
-  
+  library(nlme)
   idf=objres$Df
+  idf=idf[idf$Grp %in% names(which((table(idf$Grp)>1))),]
+  idf$Grp=factor(idf$Grp)
+  idf$out=FALSE
+  if(nlevels(idf$Grp)<2) return(NULL)
+
   #####
-  idf2=idf[idf$Grp %in% names(which((table(idf$Grp)>1))),]
-  idf2$Grp=factor(idf2$Grp)
-  idf2$out=FALSE
-  if(nlevels(idf2$Grp)<2) return(NULL)
-  
-  mod=Gls(Resp~Grp,data=idf2[!idf2$out,],method="REML")
+  mod=gls(Resp~Grp,data=idf,method="REML")
   if(checkvar){
     modw=update(mod,weights=varIdent(form=~1|Grp))
     if(AIC(modw)<AIC(mod)){
@@ -86,11 +176,12 @@ compCS<-function(objres,bfco=0.1,checkvar=TRUE){
     }
   }
   
-  resid=residuals(update(mod,method="ML"),'pearson');names(resid)=rownames(idf2)
+  resid=residuals(update(mod,method="ML"),'pearson')
+  names(resid)=rownames(idf)
   out=outlierTest(lm(resid~1),cutoff = bfco)
   if(out$signif){
-    idf2[names(out$rstudent),]$out=TRUE
-    mod=Gls(Resp~Grp,data=idf2[!idf2$out,],method="REML")
+    idf[names(out$rstudent),]$out=TRUE
+    mod=gls(Resp~Grp,data=idf[!idf$out,],method="REML")
     if(checkvar){
       modw=update(mod,weights=varIdent(form=~1|Grp))
       if(AIC(modw)<AIC(mod)){
@@ -100,185 +191,167 @@ compCS<-function(objres,bfco=0.1,checkvar=TRUE){
       }
     }
   }
-  mod2=update(mod,.~.,method="ML")
-  mod20=update(mod,.~1,method="ML")
-  lrt=2*(mod2$logLik-mod20$logLik)
-  lrtpv=1-pchisq(lrt,nlevels(idf2$Grp)-1)
-  lrt=sprintf("%.2f  (d.f.=%d), p<%s%s",lrt,nlevels(idf2$Grp)-1,.myf(lrtpv),.myfpv(lrtpv))
-  wald=rms:::anova.rms(mod2,ss=FALSE)[1,1]
-  waldpv=1-pchisq(wald,nlevels(idf2$Grp)-1)
-  wald=sprintf("%.2f  (d.f.=%d), p<%s%s",wald,nlevels(idf2$Grp)-1,.myf(waldpv),.myfpv(waldpv))
+  modfin=update(mod,.~.,method="ML")
+  modfin0=update(mod,.~1,method="ML")
+  
+  ##################
+  # compute tests
+  lrt=2*(modfin$logLik-modfin0$logLik)
+  ndf=nlevels(idf$Grp)-1
+  lrtpv=1-pchisq(lrt,ndf)
+  lrt=sprintf("%.2f  (d.f.=%d), p<%s",lrt,ndf,.myf(lrtpv))
+#   wald=Anova(modfin,test.statistic="Chisq")[1,2]
+#   waldpv=1-pchisq(wald,ndf)
+#   wald=sprintf("%.2f  (d.f.=%d), p<%s%s",wald,ndf,.myf(waldpv),.myfpv(waldpv))
+  Ftest=anova(modfin)[2,2]
+  Ftestpv=1-pchisq(Ftest,ndf)
+  Ftest=sprintf("%.2f  (d.f.=%d), p<%s",Ftest,ndf,.myf(Ftestpv))
   npt=NA
-  if(nlevels(idf2$Grp)==2){
-    kw=suppressWarnings(wilcox.test(Resp~Grp,idf2[!idf2$out,]))
-    npt=sprintf("p<%s%s",.myf(kw$p.value),.myfpv(kw$p.value))
+  if(ndf==1){
+    kw=suppressWarnings(wilcox.test(Resp~Grp,idf[!idf$out,]))
+    npt=sprintf("p<%s",.myf(kw$p.value))
   }
-  if(nlevels(idf2$Grp)>2){
-    kw=suppressWarnings(kruskal.test(Resp~Grp,idf2[!idf2$out,]))
-  npt=sprintf("%.2f  (d.f.=%d), p<%s%s",kw$statistic,
-              kw$parameter,.myf(kw$p.value),.myfpv(kw$p.value))
+  if(ndf>1){
+    kw=suppressWarnings(kruskal.test(Resp~Grp,idf[!idf$out,]))
+  npt=sprintf("%.2f  (d.f.=%d), p<%s",kw$statistic,kw$parameter,.myf(kw$p.value))
   }
-  modtab=cbind(lrt,wald,npt)
-  dimnames(modtab)=list(c("Treat" ),c("Wald test","Likelihood ratio test",
-                                      ifelse(nlevels(idf2$Grp)>2,"Kruskal-Wallis","Wilcoxon RankSum test")))
-  ct=contrMat(table(idf2$Grp),type="Tukey")
-  lcts=lapply(strsplit(rownames(ct)," - "),function(x)
-    contrast(mod2,list(Grp=x[1]),list(Grp=x[2])))
-  jtab=data.frame(t(sapply(lcts,function(x)
-    c(unlist(x[c("Contrast","Lower","Upper","Pvalue" )])))))
-  jtab=cbind(do.call("rbind",strsplit(rownames(ct)," - ")),jtab,stringsAsFactors=F)
+  modtab=cbind(lrt,Ftest,npt)
+  dimnames(modtab)=list(c("Treat" ),c("Likelihood ratio test","F test",
+                                      ifelse(ndf>1,"Kruskal-Wallis","Wilcoxon RankSum test")))
+  
+  ##################
+  # compute contrasts
+  ctm=contrMat(table(idf$Grp),type="Tukey")
+  ctm[,1]=0
+  ctres=glht(modfin,linfct=ctm)
+  jtab=data.frame(cbind(confint(ctres)$confint[,1:3,drop=F],summary(ctres)$test$pvalues))
+  jtab=cbind(do.call("rbind",strsplit(rownames(ctm)," - ")),jtab,stringsAsFactors=F)
   names(jtab)=c("Grp1","Grp2","Contrast","Lower","Upper","Pvalue" )
-  
-  jtab$Wil=suppressWarnings(sapply(strsplit(rownames(ct)," - "),function(x) 
-    wilcox.test(Resp~factor(Grp),idf2[idf2$Grp%in%x & !idf2$out,])$p.value))
-  
- # print(jtab)
-  tab=nlme:::summary.gls(mod2)$tT
+  rownames(jtab)=NULL
+
+  jtab$Wil=suppressWarnings(sapply(strsplit(rownames(ctm)," - "),function(x) 
+    wilcox.test(Resp~factor(Grp),idf[idf$Grp%in%x & !idf$out,])$p.value))
+
+  ##################
+  # get model infos
+  tab=nlme:::summary.gls(modfin)$tT
   rownames(tab)=gsub("^Grp=","",rownames(tab))
   tab=data.frame(tab)
   tab[,4]=sapply(tab[,4],function(x) sprintf("%.5f",x))
   for(i in 1:3) tab[,i]=sapply(tab[,i],function(x) sprintf("%.3f",x))
   
+  
   weightCoef=NULL
-  mstruct=coef(mod2$modelStruct,unconstrained=FALSE)
+  mstruct=coef(modfin$modelStruct,unconstrained=FALSE)
   if(!is.null(mstruct))
     if(any(grepl("^varStruct",names(mstruct)))){
     weightCoef=mstruct[grep("^varStruct",names(mstruct))]
     names(weightCoef)=gsub("^varStruct\\.","",names(weightCoef))
-    weightCoef=weightCoef[levels(idf2$Grp)]
+    weightCoef=weightCoef[levels(idf$Grp)]
     weightCoef[is.na(weightCoef)]=1
-    names(weightCoef)=levels(idf2$Grp)
+    names(weightCoef)=levels(idf$Grp)
    }
   
-  newdf=expand.grid(Grp=levels(idf2$Grp))
-  newdf=cbind(newdf,data.frame(predict(mod2,newdf,se=T)))
+  newdf=expand.grid(Grp=levels(idf$Grp))
+  newdf=cbind(newdf,data.frame(predictSE.gls(modfin,newdf,se=T)))
   names(newdf)[2]="fit"
-  
 
-  return(list(model=mod2,coefTab=tab,pairTab=jtab,AnovaTab=modtab,weightCoef=weightCoef,data=idf2,pred=newdf,Resp=objres$Resp))
-  
 
+  return(list(model=modfin,coefTab=tab,pairTab=jtab,AnovaTab=modtab,weightCoef=weightCoef,
+              data=idf,pred=newdf,Resp=objres$Resp,Trans=objres$Trans))
 }
 
-#################################################
-################################################################################################
-### Diagplots
+##############
+## format pairwise
+formatCSpw<-function(csres,ref='All',backtrans=F){
+  
 
-plotDiagCS<-function(mod,gcols=NULL,typplot="QQ-plot"){
+  btfct<-function(x) x;collab="Difference"
+  if(csres$Trans=="Log" & backtrans){btfct<-function(x) exp(x);collab='Ratio'}
+#  if(csres$Trans=="Sqrt" & backtrans) btfct<-function(x) x^2
   
-  if(is.null(gcols)) gcols=getCols(mod$data$Grp)
-  resp=mod$Resp
-  if(grepl("\\.log$",resp)) myf<-function(x) exp(x) else myf<-function(x) x
+  if(length(ref)==1) if(ref=='All') ref=levels(csres$data$Grp)
+  ref=ref[ref%in%levels(csres$data$Grp)]
+  if(length(ref)==0) ref=levels(csres$data$Grp)
+  pwt=csres$pairTab
+  if(length(ref)>0)  pwt=pwt[which(pwt[,1]%in%ref | pwt[,2]%in%ref),]
+  if(length(ref)==1){
+    if(any(pwt[,1]%in%ref)){
+      for(i in which(pwt[,1]%in%ref)){
+        pwt[i,1:2]=pwt[i,2:1]
+        pwt[i,4:5]=-pwt[i,5:4]
+        pwt[i,3]=-pwt[i,3]
+      }
+    }
+  }
   
-  ###############
-  ## format data
-  tmpdata=mod$data[!mod$data$out,c("Resp","Grp","Tp","Id")]
-  names(tmpdata)=c("y","Grp","x","Id")
+  dcts=apply(as.matrix(pwt[,3:5]),1,function(x) sprintf("%.3f [%.3f;%.3f]",btfct(x[1]),btfct(x[2]),btfct(x[3])))
+  
+  top=data.frame(pwt[,1:2],dcts,
+                 Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),
+                 WilcoxPvalue=.myf(pwt$Wil),WilcoxPvalueAdj=.myf(p.adjust(pwt$Wil,"holm")),stringsAsFactors=F)
+  names(top)[3]=collab
+  if(length(ref)==1){
+    top=top[,-2]
+    colnames(top)[1]=paste("Comp to ",ref)
+  }
+  return(top)
+  
+}
+
+
+################################################################################################
+### Prep diagplots
+
+prepDiagCS<-function(csres){
+  
+  gcols=tapply(csres$data$color,csres$data$Grp,unique)
+  resp=csres$Resp
+  btfct<-function(x) x
+  if(csres$Trans=="Log"){btfct<-function(x) exp(x)}
+  if(csres$Trans=="Sqrt") btfct<-function(x) x^2
+
+   f<-function(x) {min(which( x*10^(0:20)==floor(x*10^(0:20)) )) - 1} 
+  
+   ###############
+   ## format data
+   tmpdata=csres$data[!csres$data$out,c("Resp","Resp_ori","Grp","Tp","Id")]
+  #  names(tmpdata)=c("y","Grp","x","Id")
+  ndigy=ceiling(median(sapply(tmpdata$Resp_ori,f)))+1
+  ndigye=ceiling(median(sapply(tmpdata$Resp,f)))+1
   tmpdata$Id=factor(tmpdata$Id,levels=unique(tmpdata$Id))
-  tmpdata$color=gcols[tmpdata$Grp]
-  ndigy=max(c(3,nchar(pretty(tmpdata$y-floor(tmpdata$y)))))
-  ndigye=min(c(3,nchar(pretty(myf(tmpdata$y)-floor(myf(tmpdata$y))))))
-  ndigx=max(nchar(abs(pretty(tmpdata$x-floor(tmpdata$x)))))
-  tmpdata$x=round(tmpdata$x,ndigx)
-  tmpdata$y=round(myf(tmpdata$y),ndigye)
-  tmpdata$fit=round(mod$model$fitted,ndigy)
-  tmpdata$fite=round(myf(mod$model$fitted),ndigye)
-  tmpdata$resid=round(unclass(resid(mod$model,"pearson")),ndigy)
+  tmpdata$color=gcols[as.character(tmpdata$Grp)]
+  tmpdata$Resp=round(tmpdata$Resp,ndigye)
+  tmpdata$Fit=round(csres$model$fitted,ndigye)
+  tmpdata$Resp_ori=round(tmpdata$Resp_ori,ndigy)
+  tmpdata$Fite=round(btfct(csres$model$fitted),ndigy)
+  tmpdata$resid=round(unclass(nlme:::residuals.gls(csres$model, "pearson")),ndigye+2)
   lso=order(order(tmpdata$resid))
   tmpdata$qt=qnorm(ppoints(length(lso)))[lso]
   
-  tmppred=mod$pred[,c("Grp","Grp","fit","se.fit")]
+  ###############
+  ## format predcited data
+  
+  tmppred=csres$pred[,c("Grp","Grp","fit","se.fit")]
   names(tmppred)=c("x","Grp","fit","se.fit")
   tmppred$x=as.numeric(tmppred$x)
-  tmppred$color=gcols[tmppred$Grp]
-  tmppred$y=round(myf(tmppred$fit),ndigye)
-  tmppred$ymin=round(myf(tmppred$fit-1.96*tmppred$se.fit),ndigye)
-  tmppred$ymax=round(myf(tmppred$fit+1.96*tmppred$se.fit),ndigye)
+  tmppred$color=gcols[as.character(tmppred$Grp)]
+  tmppred$y=round(tmppred$fit,ndigye)
+  tmppred$ymin=round(tmppred$fit-qt(.975,tmppred$df)*tmppred$se.fit,ndigye)
+  tmppred$ymax=round(tmppred$fit+qt(.975,tmppred$df)*tmppred$se.fit,ndigye)
+  tmppred$ybt=round(btfct(tmppred$fit),ndigy)
+  tmppred$ybtmin=round(btfct(tmppred$fit-qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
+  tmppred$ybtmax=round(btfct(tmppred$fit+qt(.975,tmppred$df)*tmppred$se.fit),ndigy)
+  tmppred$Grp=factor(tmppred$Grp,levels=levels(tmpdata$Grp))
   
-  
-  limtp=pretty(tmpdata$x)
-  limyfit=pretty(c(tmppred$ymin,tmppred$ymax,tmpdata$fite))
-  limyfit0=pretty(c(tmpdata$fit))
+  ###############
+  ## format axes
+  limtp=pretty(tmpdata$Tp)
+  limyfit=pretty(c(tmppred$ybtmin,tmppred$ybtmax,tmpdata$Resp_ori,tmpdata$Fite))
+  limyfit0=pretty(c(tmpdata$Resp,tmpdata$Fit,tmppred$ymin,tmppred$ymax))
   limxqq=range(c(tmpdata$resid,tmpdata$qt))
   limxqq=floor(limxqq[1]):ceiling(limxqq[2])
   
-  if(typplot=="None")    return(list(data=tmpdata,pred=tmppred,
-                                     limtp=limtp,limyfit=limyfit,limyfit0=limyfit0,limxqq=limxqq))
-  
-  ## format Fit
-#   if(typplot=="Fit"){
-#     
-#     a <- rCharts::Highcharts$new()
-#     for(i in unique(tmpdata$Id))
-#       a$series(data = lapply(which(tmpdata$Id==i),function(j) as.list(tmpdata[j,c("x","y","Grp","Id")])), name=i,type = "line",
-#                color=unname(tmpdata$color[which(tmpdata$Id==i)][1]),
-#                lineWidth = 1.5,
-#                showInLegend = FALSE, marker= list(enabled = FALSE))
-#     for(i in unique(tmppred$Grp)){
-#       a$series(data = lapply(which(tmppred$Grp==i),function(j) as.list(tmppred[j,c("x","y","Grp")])), name=i,type = "line",
-#                fillOpacity = 0.3,lineWidth = 4,
-#                color=unname(tmppred$color[which(tmppred$Grp==i)][1]),
-#                zIndex = 1)
-#       a$series(data = lapply(which(tmppred$Grp==i),function(j) 
-#         unname(as.list(tmppred[j,c("x","ymin","ymax")]))),type = "arearange",# showInLegend = FALSE,
-#         fillOpacity = 0.3,lineWidth = 0,
-#         color=unname(tmppred$color[which(tmppred$Grp==i)][1]),
-#         zIndex = 0)
-#     }
-#     a$xAxis(title = list(text = "Time"), min = min(limtp), max = max(limtp), tickInterval = diff(limtp)[1])
-#     a$yAxis(title = list(text = paste("Response:",resp)), min =  min(limyfit), max = max(limyfit), tickInterval = diff(limyfit)[1])
-#     a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Treatment group"))
-#     #  a
-#     return(a)
-#   }
-#   
-  ## format qqplot
-  if(typplot=="QQ-plot"){
-    tmpqqp=tmpdata[,c("resid","qt","x"  ,"Grp","Id","color")]
-    names(tmpqqp)[1:3]=c("x","y","Tp")
-    ab=c(range(limxqq),range(limxqq))
-    if(nrow(tmpqqp)>800) tmpqqp=tmpqqp[rev(order(-abs(tmpqqp[,1]))[1:800]),]
-    
-    a <- rCharts::Highcharts$new()
-    a$series(data = list(list(x=ab[1],y=ab[3]),list(x=ab[2],y=ab[4])), name='reg',type = "line",color='grey',
-             showInLegend = FALSE, marker= list(enabled = FALSE))
-    a$series(data = lapply(1:nrow(tmpqqp),function(i) as.list(tmpqqp[i,])), name='qqnorm',type = "scatter")
-    a$tooltip( formatter = "#! function() { return this.point.Grp + ': ' + this.point.Id + ' (' +this.point.Tp + ')' ; } !#")
-    a$legend(enabled = F)
-    a$xAxis(title = list(text = "Pearson residuals"), min = min(limxqq), max = max(limxqq), tickInterval = diff(limxqq)[1])
-    a$yAxis(title = list(text = "Quantile"), min = min(limxqq), max = max(limxqq), tickInterval = diff(limxqq)[1])
-    #    a
-    return(a)
-  }
-  
-  ## format resid/mid
-  if(typplot=="Resid/Grp"){
-    tmpbxp=tmpdata[,c("Id","resid","Grp","color")]
-    names(tmpbxp)[2]="x"
-    bwstats = setNames(as.data.frame(boxplot(x ~ Grp, data = tmpbxp, plot = F)$stats), nm = NULL)
-    b <- Highcharts$new()
-    b$set(series = list(list(name = 'Residuals',data = bwstats)))
-    b$xAxis(labels=list(rotation = -90),categories = levels(tmpbxp$Grp),title = list(text = 'Group'))
-    b$legend(enabled = F)
-    b$yAxis(title = list(text = "Pearson residuals"), min = min(limxqq), max = max(limxqq), tickInterval = diff(limxqq)[1])
-    b$chart(type = 'boxplot')
-    #    b
-    return(b)
-  }
-  
-  # format resid,fit
-  tmpresf=tmpdata[,c("resid","fit" ,"x" ,"Grp","Id","color")]
-  names(tmpresf)[1:3]=c("y","x","Tp")
-  if(nrow(tmpresf)>800) tmpresf=tmpresf[rev(order(-abs(tmpresf[,1]))[1:800]),]
-  
-  c <- rCharts::Highcharts$new()
-  #  c$series(data = list(list(x=flim[1],y=0),list(x=flim[2],y=0)), name='reg',type = "line",color='grey')
-  c$series(data = lapply(1:nrow(tmpresf),function(i) as.list(tmpresf[i,])), name='resid',type = "scatter")
-  c$tooltip( formatter = "#! function() { return this.point.Grp + ': ' + this.point.Id + ' (' +this.point.Tp + ')' ; } !#")
-  c$legend(enabled = F)
-  c$yAxis(title = list(text = "Pearson residuals"), min = min(limxqq), max = max(limxqq), tickInterval = diff(limxqq)[1])
-  c$xAxis(title = list(text = "Fitted"), min = min(limyfit0), max = max(limyfit0), tickInterval = diff(limyfit0)[1])
-  return(c)
-  
+  return(list(data=tmpdata,pred=tmppred,limtp=limtp,limyfit=limyfit,limyfit0=limyfit0,limxqq=limxqq,Type="cs",Resp=csres$Resp,Trans=csres$Trans))
 }
 

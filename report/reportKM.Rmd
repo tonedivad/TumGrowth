@@ -21,18 +21,12 @@ Parameters: **`r objres$Par`**
 
 ```{r table0, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
 require(pander)
-    ndf=objres$Df
-    v=paste(ndf$Id," (",ndf$Time,c("","+")[ndf$Event+1],")",sep="");names(v)=NULL
-    lso=order(ndf$Time,ndf$Event)
-    v=tapply(v[lso],ndf$Grp[lso],c)
-    nv=tapply(v[lso],ndf$Grp[lso],length)
-    nev=tapply(ndf$Event[lso],ndf$Grp[lso],sum)
-    sumIds=data.frame(cbind(Group=names(v),"N"=nv,"Event"=nev,"Censoring"=unlist(sapply(v,paste,collapse=" "))))
+sumIds=sumIdKM(objres)
     rownames(sumIds)=NULL
 panderOptions('table.split.table', Inf)
     pander(sumIds)
 ```
-Num. of animals: **`r length(lso)`**, num. of events: **`r sum(ndf$Event)`**
+Num. of animals: **`r nrow(objres$Df)`**, num. of events: **`r sum(objres$Df$Event)`**
 
 
 ```{r plot1, fig.height=5,fig.width=8,echo=FALSE}
@@ -49,26 +43,21 @@ Stats
 
 **ANOVA**
 ```{r table2, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
-if(!is.null(modKM)) pander(modKM$modTab)
+if(!is.null(modKM$modTab)) pander(modKM$modTab)
 ```
 
 **Hazard ratios**
 ```{r table3, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
-if(!is.null(modKM)) pander(modKM$hrTab)
+if(!is.null(modKM$hrTab)) pander(modKM$hrTab)
 ```
-
-\clearpage
 
 Modelling
 -----------------------------------
 
 **Cox regression**
 ```{r model, results='markdown',echo=FALSE}
-if(!is.null(modKM)) modKM$model
+if(!is.null(modKM$model)) modKM$model
 ```
-
-**All possible zazard ratios**
-
 
 \clearpage
 
@@ -77,7 +66,7 @@ Data
 ```{r table1, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
 require(pander)
 panderOptions('table.split.table', Inf)
-dat=objres[[1]]
+dat=objres$Df[,1:5,drop=FALSE]
 rownames(dat)=NULL
 pander(dat)
 ```

@@ -4,9 +4,10 @@ library(shinyFiles)
 
 source("helpers.R")
 source("files.R")
-source("long.R")
+source("longlmer.R")
 source("km.R")
 source("cs.R")
+source("lchart.R")
 source("plotexport.R")
 
 
@@ -14,48 +15,66 @@ options(shiny.maxRequestSize = 200*1024^2)
 
 shinyServer(function(input, output, session) {
   
+
   mypalette<-function(x) c("#61B270", "#397FB9","#D05043" ,"#8475B5", "#878787", "#EB7B36", "#A5691B" ,"#1B7E76",
                            '#C994C7','#E151A3','#D61967','#980043','#FC9272','#F75A40','#D72322','#A50F15',
                            '#9EBCDA','#8C87BF','#894FA3','#810F7C','#9ECAE1','#5DA4D0','#2C7CBA','#08519C',
                            '#A1D99B','#63BB6D','#2D954D','#006D2C','#BDBDBD','#8A8A8A','#5D5D5D','#252525',
                            '#FEC44F','#F88B22','#D65808','#993404','#C79141','#A5691B','#DFC27D','#7E4808','#543005')
   
-#   paste(unlist(lapply(c("PuRd" ,"Reds","BuPu","Blues","Greens","Greys","YlOrBr","OrRd"),function(ix) colorRampPalette(brewer.pal(9,ix)[4:8])(4))),         collapse="','")
+  values <- reactiveValues(
+    file1 = NULL
+  )
   
+  observe({
+    input$clearFile1
+    input$dataInput
+    values$file1 <- NULL
+  })
+  
+  observe({
+    values$file1 <- input$browse
+  })
   ######## format the side bar
   lcols <- reactiveValues(data = NULL)
   fileData <- reactive({
-  #  cat(input$sampleData)
     if(input$dataInput==1) inFile<-list(Ori=input$sampleData,Where=paste("./",input$sampleData,sep=""))
     if(input$dataInput==2){
-      if (is.null(input$browse)) return(NULL)
-      inFile <- list(Ori=input$browse$name,Where=input$browse$datapath)
+  #    print(input$browse)
+      shiny:::validate(
+        need(try(!is.null(values$file1)), "Please select a data set")
+      )
+      inFile <- list(Ori=values$file1$name,Where=values$file1$datapath)
     }
     inFile$Ori=gsub(".*/","",gsub("\\.[A-Za-z]+$","",inFile$Ori))
     if(nchar(inFile$Ori)<2) inFile$Ori=paste("TG_",Sys.Date(),format(Sys.time(), "%H:%M"),sep="")
-    return(inFile)
+      return(inFile)
   })
   
   dat <- reactive({
     ifile=fileData()
     if (is.null(ifile$Where)) return(NULL)
       cat("Loading",ifile$Where,"\n")
+      print(ifile)
       shiny:::flushReact()
       lcols$data<-NULL
       setday0=suppressWarnings(as.numeric(input$setday0))
-      res<-try(loadFile(ifile$Where,ndigit=as.numeric(input$ndigits),imputezer=input$imputezer,trim=input$trim, setday0=setday0,
-               trimzer=input$trimzer,exclzer=input$exclzer,sumids=input$sumids),TRUE)
+      res<-try(suppressWarnings(loadFile(ifile$Where,ndigit=as.numeric(input$ndigits),imputezer=input$imputezer,trim=input$trim, setday0=setday0,
+               trimzer=input$trimzer,exclzer=input$exclzer,set2surv=input$set2surv)),TRUE)
       if(class(res)%in%"try-error")
         res=paste("Oups, something went wrong with the format of",ifile$Ori)
       res
   })
   
   mresp <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);cdat$Resp})
+  mresptr <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);cdat$RespTr})
   mgrps <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);levels(cdat$dataM$Grp)})
   l2Excl <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);cdat$Excl})
   refkm <- eventReactive(input$varskm,input$varskm)
-  reflg <- eventReactive(input$varslg,input$varslg)
+#  reflg <- eventReactive(eventExpr=modelLGpw(),valueExpr=modelLGpw()$grps)
   refcs <- eventReactive(input$varscs,input$varscs)
+  
+  ###### Update colors
   observeEvent(input$updateCols,{
     num2<-mgrps()
     newcols=sapply(1:length(num2),function(x) eval(parse(text=paste("input$colCustom",x,sep=""))))
@@ -71,13 +90,7 @@ shinyServer(function(input, output, session) {
     newcols
   })
   ##################################
-  output$choicesdat<-renderUI({
-    nums2=mresp()
-    if(is.null(nums2)) return(NULL)
-    radioButtons("responsedat",NULL, choices=nums2,selected=nums2[1],inline = T)
-  })
-  
-  
+  ###### Format ui components
   output$groupscols<-renderUI({
     nums2<-mgrps()
     if(is.null(nums2)) return(NULL)
@@ -87,11 +100,23 @@ shinyServer(function(input, output, session) {
       if(length(listcols1)==length(nums2)) if(all(names(listcols1)==nums2)) listcols0=listcols1
     }
     grpcols=list()
-    # cat("chk",nums2,"\n",listcols0)
     for(i in 1:length(nums2))
       grpcols[[i]]=colourInput(paste("colCustom",i,sep=""), nums2[i], palette = "limited",value=listcols0[i],
                                allowedCols=unique(mypalette()))
     grpcols
+  })
+  
+  ####### data upload
+  output$choicesdatexp<-renderUI({
+    nums2=mresp()
+    if(is.null(nums2)) return(NULL)
+    if(length(nums2)==1) return(NULL)
+    radioButtons("responsedatexp",NULL, choices=c('All',nums2),selected='All',inline = T)
+  })
+  output$choicesdat<-renderUI({
+    nums2=mresp()
+    if(is.null(nums2)) return(NULL)
+    radioButtons("responsedat",NULL, choices=nums2,selected=nums2[1],inline = T)
   })
   
   output$groupsdat<-renderUI({
@@ -101,20 +126,22 @@ shinyServer(function(input, output, session) {
     for(i in nums2) list[[i]]<-i
     checkboxGroupInput("groupsdat",NULL, choices=list,selected=list,inline = T)
   })
-  
-  
-  output$groupsdat2<-renderUI({
-    nums2<-mgrps()
-    if(is.null(nums2)) return(NULL)
-    list<-list()
-    for(i in nums2) list[[i]]<-i
-    checkboxGroupInput("groupsdat2",NULL, choices=list,selected=list,inline = T)
-  })
-  
+
+  ####### line charts
   output$choices<-renderUI({
     nums2=mresp()
     if(is.null(nums2)) return(NULL)
     radioButtons("response", 'Response', choices=nums2,selected=nums2[1],inline = T)
+  })
+  
+  output$choicestrans<-renderUI({
+    trtypes=('None')
+    if(is.null(input$response)) return(NULL)
+    nums2=mresptr()
+    if(paste(input$response,".log",sep="") %in% nums2)  trtypes=c(trtypes,'Log')
+    if(paste(input$response,".sqrt",sep="") %in% nums2)  trtypes=c(trtypes,'SqRt')
+    if(paste(input$response,".curt",sep="") %in% nums2)  trtypes=c(trtypes,'CuRt')
+    radioButtons("trans", "Transformation", choices=trtypes,selected='None',inline = TRUE)
   })
   
   output$boxes<-renderUI({
@@ -125,12 +152,21 @@ shinyServer(function(input, output, session) {
     checkboxGroupInput("vars",'Treatment groups', choices=list,selected=list,inline = T)
   })
   
-  ##################################
-  
+  ####### longitudinal
   output$choiceslg<-renderUI({
     nums2=mresp()
     if(is.null(nums2)) return(NULL)
     radioButtons("responselg", "Response", choices=nums2,selected=nums2[1],inline = TRUE)
+  })
+  
+  output$choiceslgtrans<-renderUI({
+    trtypes=('None')
+    if(is.null(input$responselg)) return(NULL)
+    nums2=mresptr()
+    if(paste(input$responselg,".log",sep="") %in% nums2)  trtypes=c(trtypes,'Log')
+    if(paste(input$responselg,".sqrt",sep="") %in% nums2)  trtypes=c(trtypes,'SqRt')
+    if(paste(input$responselg,".curt",sep="") %in% nums2)  trtypes=c(trtypes,'CuRt')
+    radioButtons("translg", "Transformation", choices=trtypes,selected='None',inline = TRUE)
   })
   
   output$boxeslg<-renderUI({
@@ -141,19 +177,20 @@ shinyServer(function(input, output, session) {
     checkboxGroupInput("varslg", "Treatment groups", choices=list,selected=list,inline = TRUE)
   })
   
-  output$radiolong<-renderUI({
-    nums2=c('All',reflg())
-    if(is.null(nums2)) return(NULL)
+  output$grplgvar<-renderUI({
+    pwt=modelLG()
+    if(is.null(pwt)) return(NULL)
+    nums2=levels(pwt$data$Grp)
+    if(length(nums2)>2) nums2=c('All',nums2)
     list<-list()
     for(i in nums2) list[[i]]<-i
-    checkboxGroupInput("radiolong", label =NULL,inline = T,choices =unname(nums2), selected = 'All')
+    checkboxGroupInput("radiolg", label =NULL,inline = TRUE,choices =unname(nums2), selected = nums2[1])
   })
   
-  ##################################
+  ####### survival
   output$choiceskm<-renderUI({
     nums2=mresp()
     if(is.null(nums2)) return(NULL)
-    nums2=nums2[-grep("\\.log",nums2)]
     radioButtons("responsekm", 'Response', choices=nums2,selected=nums2[1],inline = TRUE)
   })
   
@@ -166,34 +203,21 @@ shinyServer(function(input, output, session) {
   })
   
   output$radiokm<-renderUI({
-    nums2=c('None',refkm())
+    nums2=refkm()
     if(is.null(nums2)) return(NULL)
+    nums2=c('None',nums2)
     radioButtons("radiokm", NULL, choices=nums2,selected=nums2[1],inline=TRUE)
   })
   
-  
+  # OS
   output$slidekmui<-renderUI({
     if(is.null(input$responsekm)) return(NULL)
     cdat=dat()
     if(!input$responsekm%in%cdat$Resp | !is.list(cdat)) return(NULL)
-    resp=gsub("\\.log","",input$responsekm)
-    if(!resp%in%cdat$Resp) return(NULL)
-    vraw=na.omit(cdat$data[,resp])
+    vraw=na.omit(cdat$data[,input$responsekm])
     valr=pretty(c(quantile(vraw,.05),max(vraw)),100)
     sliderInput(inputId="slidekm",label=NULL,
                 min=min(valr),max=max(valr),value=max(valr),step =diff(valr)[1])
-  })
-  
-  output$slidekmui2<-renderUI({
-    if(is.null(input$responsekm)) return(NULL)
-    cdat=dat()
-    if(!input$responsekm%in%cdat$Resp | !is.list(cdat)) return(NULL)
-    resp=gsub("\\.log","",input$responsekm)
-    if(!resp%in%cdat$Resp) return(NULL)
-    vraw=na.omit(cdat$data[,resp])
-    valr=pretty(c(quantile(vraw,.95),0),100)
-    sliderInput(inputId="slidekm2",label=NULL,
-                min=min(valr),max=max(valr),value=min(valr),step =diff(valr)[1])
   })
   
   output$sliderkmtui<-renderUI({
@@ -201,58 +225,39 @@ shinyServer(function(input, output, session) {
     cdat=dat()
     if(!input$responsekm%in%cdat$Resp | !is.list(cdat)) return(NULL)
     valt=sort(unique(cdat$data$Tp))
-    args       <- list(inputId="sliderkmt", label=NULL, ticks=valt, value=length(valt)-1)
-    args$min   <- 1
-    args$step   <- 1
-    args$max   <- length(args$ticks)
-    ticks <- paste(args$ticks, collapse=',')
-    args$ticks <- TRUE
+    args       <- list(inputId="sliderkmt", label=NULL, ticks=TRUE, value=length(valt)-1,
+                       min=1,max=length(valt),step=1)
     htmlslider1  <- do.call('sliderInput', args)
-    htmlslider1$children[[2]]$attribs[['data-values']] <- ticks
+    htmlslider1$children[[2]]$attribs[['data-values']] <- paste(valt, collapse=',')
     htmlslider1
   })
   
-  ##################################
-  output$slidecsui<-renderUI({
-    # if(is.null(input$responsecs)) return(NULL)
+  # TFS
+  output$slidekmui2<-renderUI({
+    if(is.null(input$responsekm)) return(NULL)
     cdat=dat()
-    if(!is.list(cdat)) return(NULL)
-    df=cdat$data
-    df=df[df$Id%in%cdat$dataM$Id[cdat$dataM$Use],]
-    
-    valt=sort(unique(df$Tp))
-    if(length(valt)==1){
-      valt=c(valt,valt+1)
-      args       <- list(inputId="slidercs", label=NULL, ticks=valt, value=0)
-      args$min   <- 1
-      args$step   <- 1
-      args$max   <- 1
-      ticks <- paste(args$ticks, collapse=',')
-      args$ticks <- TRUE
-      htmlslider  <- do.call('sliderInput', args)
-      htmlslider$children[[2]]$attribs[['data-values']] <- ticks
-      return(htmlslider)
-      
-    }
-    
-    
-    valt0=range(tapply(df$Tp,df$Id,max,na.rm=T))
-    if(length(valt)==2) valt0=valt
-    if(valt0[1]==valt0[2]) valt0[1]=max(valt[valt<valt0[1]])
-    args       <- list(inputId="slidercs", label=NULL, ticks=valt, value=match(valt0,valt)-1)
-    args$min   <- 1
-    args$max   <- length(args$ticks)
-    ticks <- paste0(args$ticks, collapse=',')
-    args$ticks <- T
-    htmlslider  <- do.call('sliderInput', args)
-    htmlslider$children[[2]]$attribs[['data-values']] <- ticks;
-    htmlslider
+    if(!input$responsekm%in%cdat$Resp | !is.list(cdat)) return(NULL)
+    vraw=na.omit(cdat$data[,input$responsekm])
+    valr=pretty(c(quantile(vraw,.95),0),100)
+    sliderInput(inputId="slidekm2",label=NULL,
+                min=min(valr),max=max(valr),value=min(valr),step =diff(valr)[1])
   })
   
+  ####### cross sectional
   output$choicescs<-renderUI({
     nums2=mresp()
     if(is.null(nums2)) return(NULL)
     radioButtons("responsecs", 'Response', choices=nums2,selected=nums2[1],inline = TRUE)
+  })
+  
+  output$choicescstrans<-renderUI({
+    trtypes=('None')
+    if(is.null(input$responselg)) return(NULL)
+    nums2=mresptr()
+    if(paste(input$responsecs,".log",sep="") %in% nums2)  trtypes=c(trtypes,'Log')
+    if(paste(input$responsecs,".sqrt",sep="") %in% nums2)  trtypes=c(trtypes,'SqRt')
+    if(paste(input$responsecs,".curt",sep="") %in% nums2)  trtypes=c(trtypes,'CuRt')
+    radioButtons("transcs", "Transformation", choices=trtypes,selected='None',inline = TRUE)
   })
   
   output$boxescs<-renderUI({
@@ -263,140 +268,147 @@ shinyServer(function(input, output, session) {
     checkboxGroupInput("varscs", 'Treatment groups', choices=list,selected=list,inline = TRUE)
   })
   
+  ## slider
+  output$slidecsui<-renderUI({
+    cdat=dat()
+    if(!is.list(cdat)) return(NULL)
+    df=cdat$data
+    df=df[df$Id%in%cdat$dataM$Id[cdat$dataM$Use],]
+    
+    valt=sort(unique(df$Tp))
+    if(length(valt)==1){ ## only one time points!
+      valt=c(valt,valt+1)
+      args       <- list(inputId="slidercs", label=NULL, ticks=TRUE, value=0,min=1,max=1,step=1)
+      htmlslider  <- do.call('sliderInput', args)
+      htmlslider$children[[2]]$attribs[['data-values']] <- paste(args$valt, collapse=',')
+      return(htmlslider)
+    }
+    
+    valt0=range(tapply(df$Tp,df$Id,max,na.rm=T))
+    if(length(valt)==2) valt0=valt
+    if(valt0[1]==valt0[2]) valt0[1]=max(valt[valt<valt0[1]])
+    args       <- list(inputId="slidercs", label=NULL, ticks=TRUE, value=match(valt0,valt)-1,
+                       min=1,max=length(valt),step=1)
+    htmlslider  <- do.call('sliderInput', args)
+    htmlslider$children[[2]]$attribs[['data-values']] <- paste0(valt, collapse=',');
+    htmlslider
+  })
+  
+  ## pairwise cmparisons
   output$grpcsvar<-renderUI({
     nums2=c('All',refcs())
     if(is.null(nums2)) return(NULL)
-    #  radioButtons("grpcsvar", label =NULL,inline = T,choices =unname(nums2), selected = 'All')
     list<-list()
     for(i in nums2) list[[i]]<-i
     checkboxGroupInput("grpcsvar", label =NULL,inline = T,choices =unname(nums2), selected = 'All')
   })
 
-  #######################################################################################################################
+  #############################################################################################
+  #################### Calculations
+  
+  ###### longitudinal
   modelLG<-eventReactive(input$goButton,{
     
     if(is.null(input$responselg) | is.null(input$varslg)) return(NULL)
     if(any(!input$responselg%in%mresp()) | any(!input$varslg%in%mgrps() )) return(NULL)
-    
     cdat<-dat()
-    df=cdat$data
-    df$Resp=df[,input$responselg] 
-    df=df[,which(!names(df)%in%mresp())]
-    lmids=cdat$dataM$Id[cdat$dataM$Use & cdat$dataM$Grp%in%input$varslg]
-    lgdf=df[df$Id%in%lmids & !is.na(df$Resp),]
-    lgdf$Grp=factor(cdat$dataM[lgdf$Id,]$Grp)
-    
-    bfco=input$bfco
-    if(bfco=='None') bfco=0 else bfco=as.numeric(gsub('p<','',bfco))
-    res=compModLG(lgdf,bfco=bfco,checkvar = input$radiolongvar)
-    res$Resp=input$responselg
+    if(is.null(cdat)) return(NULL)
+    objres=getLGmat(cdat,resp=input$responselg,lgrps=input$varslg,
+             gcols=colGrps()[levels(cdat$dataM$Grp)],trans=input$translg)
+    bfco=ifelse(!input$showPanelLG2,0,as.numeric(gsub('p<','',input$bfcolg)))
+    if(!input$showPanelLG1)  res=compModLG(objres,bfco=bfco)
+    if(input$showPanelLG1)  res=compModLGpw(objres,bfco=bfco,tpcut=as.numeric(input$tpcut))
     res
   })
   
+
   modelLGpw<-reactive({
-    if(is.null(input$responselg) | is.null(input$varslg)| is.null(input$radiolong)) return(NULL)
-    if(any(!input$responselg%in%mresp()) | any(!input$varslg%in%mgrps() )) return(NULL)
+    if(is.null(input$responselg)) return(NULL)
+  #  if(any(!input$responselg%in%mresp()) | any(!input$varslg%in%mgrps() )) return(NULL)
     objres=modelLG()
-    ref=input$radiolong
-    ref=ref[ref%in%levels(objres$data$Grp)]
-    
-    pwt=objres$pairTab[,1:4]
-    if(length(ref)>0)  pwt=pwt[which(pwt[,1]%in%ref | pwt[,2]%in%ref),]
-    pwt$PvalueAdj=.myf(p.adjust(pwt$Pvalue,"holm"))
-    pwt$Pvalue=.myf(pwt$Pvalue)
-    pwt$ChiSq=round(pwt$ChiSq,2)
-    if(length(ref)==1){
-      pwt[pwt[,1]==ref,1]=pwt[pwt[,1]==ref,2]
-      pwt=pwt[,-2]
-      names(pwt)[1]=ref
-    }
-    pwt
+    if(is.null(objres)) return(NULL)
+    formatLGpw(objres,input$radiolg)
   })
   
-  #######################################################################################################################
+  diagLG<-reactive({
+    if(is.null(input$responselg) | is.null(input$varslg)) return(NULL)
+    objres=modelLG()
+    if(is.null(objres)) return(NULL)
+    prepDiagLG(objres)
+  })
+  
+  ###### survival
   ndfKM<-reactive({
     if(is.null(input$responsekm)) return(NULL)
     if(is.null(input$slidekm2) & is.null(input$slidekm)) return(NULL)
-    if(any(!input$responsekm%in%mresp()) | any(!input$varskm%in%mgrps() )) return(NULL)
+     if(any(!input$responsekm%in%mresp()) | any(!input$varskm%in%mgrps() )) return(NULL)
     
     cdat<-dat()
     ltps=sort(unique(cdat$data$Tp))
-    resp=gsub("\\.log$","",input$responsekm)
     if(input$survTyp==1) 
-      return(getOSTab(cdat,resp,input$varskm,lastT=ltps[input$sliderkmt+1],lastM=input$slidekm))
+      return(getOSTab(cdat,input$responsekm,input$varskm, gcols=colGrps()[levels(cdat$dataM$Grp)],
+                      lastT=ltps[input$sliderkmt+1],lastM=input$slidekm))
     if(input$survTyp==2) 
-      return(getTFSTab(cdat,resp,input$varskm,firstM=input$slidekm2))
-    
-    
+      return(getTFSTab(cdat,input$responsekm,input$varskm,gcols=colGrps()[levels(cdat$dataM$Grp)],
+                       firstM=input$slidekm2))
   })
   
   modelKM<-reactive({
-    if(is.null(input$responsekm) |is.null(input$slidekm) |is.null(input$radiokm)) return(NULL)
+    if(is.null(input$responsekm)) return(NULL)
+    if(is.null(input$slidekm2) & is.null(input$slidekm)) return(NULL)
     if(input$radiokm=='None') return(NULL)
     objres=ndfKM()
     if(is.null(objres)) return(NULL)
-  #  cat("Ref",input$radiokm,input$radiokmFirth,"\n")
-    compKM(objres,input$radiokm,input$radiokmFirth)
+    compKM(objres,ref=input$radiokm,firth=input$radiokmFirth)
   })
-  ############################################################################################################
+
+  ###### cross sectional
   csectDF<-reactive({
-    if(any(!input$responsecs%in%mresp()) | any(!input$varscs%in%mgrps() )) return(NULL)
+    if(any(!input$responsecs%in%mresp()) | any(!input$varscs%in%mgrps() ) | is.null(input$transcs)) return(NULL)
     cdat<-dat()
-    df=cdat$data
-    dfm=cdat$dataM
-    rangetp=sort(unique(df$Tp))
-    getCSmat(df,dfm,resp=input$responsecs,lgrps=input$varscs,
-             rangetp=rangetp[input$slidercs+1],usemax=input$radiocsMax)
+    if(is.null(cdat)) return(NULL)
+    rangetp=sort(unique(cdat$data$Tp))
+    getCSmat(cdat,resp=input$responsecs,lgrps=input$varscs,gcols=colGrps()[levels(cdat$dataM$Grp)],
+             trans=input$transcs,rangetp=rangetp[input$slidercs+1],usemax=grepl("Max",input$radiocsMax))
   })
   
+
   modelCS<-reactive({
     objres<-csectDF()
     if(is.null(objres)) return(NULL)
-    bfco=input$bfcocs
-    if(bfco=='None') bfco=0 else bfco=as.numeric(gsub('p<','',bfco))
-    res=compCS(objres,bfco=bfco,checkvar=input$radiocsvar)
-    res
+    bfco=ifelse(!input$showPanelCS1,0,as.numeric(gsub('p<','',input$bfcocs)))
+    compCS(objres,bfco=bfco,checkvar=input$radiocsvar)
   })
   
   modelCSpw<-reactive({
     if(any(!input$responsecs%in%mresp()) | any(!input$varscs%in%mgrps()) | is.null(input$grpcsvar)) return(NULL)
     objres=modelCS()
     if(is.null(objres)) return(NULL)
-    ref=input$grpcsvar
-    ref=ref[ref%in%levels(objres$data$Grp)]
-    if(length(ref)==0) ref=levels(objres$data$Grp)
-    pwt=objres$pairTab
- #   print(pwt)
-    if(length(ref)>0)  pwt=pwt[which(pwt[,1]%in%ref | pwt[,2]%in%ref),]
-    if(length(ref)==1){
-      if(any(pwt[,1]%in%ref)){
-        for(i in which(pwt[,1]%in%ref)){
-          pwt[i,1:2]=pwt[i,2:1]
-          pwt[i,4:5]=-pwt[i,5:4]
-          pwt[i,3]=-pwt[i,3]
-        }
-      }
-    }
-    top=data.frame(pwt[,1:2],Diff=apply(as.matrix(pwt[,3:5]),1,function(x) sprintf("%.3f [%.3f;%.3f]",x[1],x[2],x[3])),
-    Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),
-    WilcoxPvalue=.myf(pwt$Wil),WilcoxPvalueAdj=.myf(p.adjust(pwt$Wil,"holm")),stringsAsFactors=F)
-    if(length(ref)==1){
-      top=top[,-2]
-      colnames(top)[1]=paste("Comp to ",ref)}
-    return(top)
+    formatCSpw(objres,input$grpcsvar)
+  })
+  
+  diagCS<-reactive({
+    if(any(!input$responsecs%in%mresp()) | any(!input$varscs%in%mgrps()) | is.null(input$grpcsvar)) return(NULL)
+    objres=modelCS()
+    if(is.null(objres)) return(NULL)
+    prepDiagCS(objres)
   })
   
   
- ############################################################################
-  
+  ############################################################################
+  ########## output
+  ### data upload
   output$design <- renderTable({
     cdat=dat()
     if(!is.list(cdat)) return(as.table(matrix(cdat,dimnames=list("Error"," "))))
     
     lmids=cdat$dataM$Id[cdat$dataM$Use]
     lgdf=cdat$data[cdat$data$Id%in%lmids,]
+    ltps=sort(unique(cdat$data$Tp))
+    if(!is.null(input$responsedatexp))
+      if(input$responsedatexp!='All') lgdf=lgdf[!is.na(cdat$data[,input$responsedatexp]),]
     lgdf$Grp=factor(cdat$dataM[lgdf$Id,]$Grp)
-    tab=table(lgdf$Grp,lgdf$Tp)
+    tab=table(lgdf$Grp,factor(lgdf$Tp,levels=ltps))
     return(tab)
   })
   
@@ -423,75 +435,35 @@ shinyServer(function(input, output, session) {
   },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE),server=TRUE,
   selection = list(mode = 'multiple', selected = l2Excl()))
 
-  ###########################################################
-  
+  ###### line charts
   output$plottcs<-renderChart({
-    if(any(!input$response%in%mresp()) | any(!input$vars%in%mgrps() )) return(NULL)
-
+    if(any(!input$response%in%mresp()) | any(!input$vars%in%mgrps() | is.null(input$trans))) return(NULL)
     cdat=dat()
-    lmids=cdat$dataM$Id[cdat$dataM$Use]
-    cdat$data=cdat$data[cdat$data$Id%in%lmids,]
-    cdat$dataM=cdat$dataM[cdat$dataM$Id%in%lmids,]
-
-    df=cbind(cdat$data[,c(input$response,"Tp")],cdat$dataM[cdat$data$Id,])
-    names(df)[1]=input$response
-    df$color=colGrps()[as.character(df$Grp)]
-    
-    h1=plotLineC(df,input$response,input$vars,input$forcezero,type=input$tcfplottyp,
-                 se=input$tcse=='SE',defzero=as.numeric(input$tcdef),
+    if(is.null(cdat)) return(NULL)
+    lgdata=getLGmat(cdat,resp=input$response,lgrps=input$vars,
+                    gcols=colGrps()[levels(cdat$dataM$Grp)],trans=input$trans)
+    h1=plotLineC(lgdata,type=input$tcfplottyp,
+                 force2zero=input$showPanel2,defzero=as.numeric(input$tcdef),
                  miny=as.numeric(input$tcminy),maxy=as.numeric(input$tcmaxy))$plot
     h1$addParams(dom = 'plottcs')
     return(h1)
   })
   
-  
-  ###########################################################
-  output$plotkm<-renderChart({
-    
-    ndf=ndfKM()
-    if(is.null(ndf)) return(NULL)
-    p1=plotKM(ndf, gcols=colGrps()[levels(ndf$Df$Grp)],shift=as.numeric(input$kmshift),
-              lwd=as.numeric(input$kmlwd),
-              title=ifelse(ndf$Typ=="OS","Perc. surviving","Perc. tumour-free"))
-    p1=p1$plot
-    p1$addParams(dom = 'plotkm')
-    return(p1)
-  })
-  
-  output$sumKM <- renderTable({
-    ndf<-ndfKM()$Df
-    v=paste(ndf$Id," (",ndf$Time,c("","+")[ndf$Event+1],")",sep="");names(v)=NULL
-    lso=order(ndf$Time,ndf$Event)
-    v=tapply(v[lso],ndf$Grp[lso],c)
-    data.frame(cbind(Group=names(v),"Censoring"=unlist(sapply(v,paste,collapse=" "))))
-  },align="lll",include.rownames = F,include.colnames = T)
-  
-  output$modKM<-renderTable({
-    if(is.null(input$responsekm) |is.null(input$slidekm) |is.null(input$radiokm)) return(NULL)
-    if(input$radiokm=='None') return(NULL)
-    data.frame(modelKM()$modTab)},align="llll")
-  
-  output$hrKM<-DT::renderDataTable({
-    if(is.null(input$responsekm) |is.null(input$slidekm) |is.null(input$radiokm)) return(NULL)
-    if(input$radiokm=='None') return(NULL)
-    modelKM()$hrTab},
-    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
-  
-  
-  ###########################################################
+  ###### longitudinal
   output$plotdiaglg<-renderChart({
     if(is.null(input$responselg)) return(NULL)
-    mod<-modelLG()
-    p1=plotDiagLG(mod,colGrps()[levels(mod$data$Grp)],typplot=input$radiodiaglg)
+    fittedLG<-diagLG()
+    if(is.null(fittedLG)) return(NULL)
+    #    print(str(fittedLG$data))
+    p1=plotDiag(fittedLG,typplot=input$radiodiaglg)
     p1$addParams(dom = 'plotdiaglg')
     return(p1)
-    
   })
-  output$modelLGsum<-renderTable(modelLG()$coefTab,align="lcccc")
-  output$modelLGeffect<-renderTable(data.frame(modelLG()$AnovaTab),align="lll")
-  output$modelLGpw<-DT::renderDataTable({modelLGpw()}, 
-                options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE),
-                rownames = FALSE)
+  
+  output$modelLGsum<-renderTable(modelLG()$coefTab,align="lccccc")
+  output$modelLGeffect<-renderTable(data.frame(modelLG()$AnovaTab),align="lllll")
+  output$modelLGpw<-DT::renderDataTable({modelLGpw()},
+                    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE),rownames = FALSE)
   output$modelLGwei<-renderPrint(modelLG()$weightCoef)
   output$modelLGcor<-renderPrint(modelLG()$corrCoef)
   output$outLG<-renderPrint({
@@ -503,15 +475,52 @@ shinyServer(function(input, output, session) {
     c("Outliers: ",unname(louts))
   })
   
-  ############################################################################
+  ###### survival
+  output$plotkm<-renderChart({
+    if(is.null(input$responsekm)) return(NULL)
+    ndf=ndfKM()
+    if(is.null(ndf)) return(NULL)
+    p1=plotKM(ndf,shift=as.numeric(input$kmshift),
+              lwd=as.numeric(input$kmlwd),
+              title=ifelse(ndf$Typ=="OS","Perc. surviving","Perc. tumour-free"))
+    p1=p1$plot
+    p1$addParams(dom = 'plotkm')
+    return(p1)
+  })
+  
+  output$sumKM <- renderTable({
+    sumIdKM(ndfKM())
+  },align="lllllll",include.rownames = F,include.colnames = T)
+  
+  output$modKM<-renderTable({
+    if(is.null(input$responsekm) |is.null(input$radiokm)) return(NULL)
+    if(input$radiokm=='None') return(NULL)
+    data.frame(modelKM()$modTab)},align="llll")
+  
+  output$hrKM<-DT::renderDataTable({
+    if(is.null(input$responsekm) |is.null(input$slidekm) |is.null(input$radiokm)) return(NULL)
+    if(input$radiokm=='None') return(NULL)
+    modelKM()$hrTab},
+    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
+
+  ###### cross-sectional
+  output$plotcs<-renderChart({
+    if(is.null(input$responsecs)) return(NULL)
+    objres=csectDF()
+    p1=plotCS(objres,miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy))$plot
+    p1$addParams(dom = 'plotcs')
+    return(p1)
+  })
+  
   output$plotdiagcs<-renderChart({
     if(is.null(input$responsecs)) return(NULL)
-    mod<-modelCS()
-    p1=plotDiagCS(mod,colGrps()[levels(mod$data$Grp)],typplot=input$radiodiagcs)
+    fittedCS<-diagCS()
+    if(is.null(fittedCS)) return(NULL)
+    p1=plotDiag(fittedCS,typplot=input$radiodiagcs)
     p1$addParams(dom = 'plotdiagcs')
     return(p1)
-    
   })
+  
   output$sumCS <- renderTable({
     objres=csectDF()
     if(is.null(objres)) return(NULL)
@@ -520,18 +529,15 @@ shinyServer(function(input, output, session) {
     names(v)=NULL
     lso=order(-objres$Df$Tp)
     v=tapply(v[lso],objres$Df$Grp[lso],sort)
-    data.frame(cbind(Group=names(v),Animals=unlist(sapply(v,paste,collapse=" "))))
-  },align="lll",include.rownames = F,include.colnames = T)
+    nnamis=tapply(v[lso],objres$Df$Grp[lso],length)
+    ltps=tapply(objres$Df$Tp[lso],objres$Df$Grp[lso],function(x){
+      itp=range(x)
+      if(itp[1]==itp[2]) return(as.character(itp[1]))
+      paste(itp,collapse='-')
+    })
+    data.frame(cbind(Group=names(v),N=nnamis,Tp=ltps,Animals=unlist(sapply(v,paste,collapse=" "))))
+  },align="lllll",include.rownames = F,include.colnames = T)
   
-  output$plotcs<-renderChart({
-    if(is.null(input$responsecs)) return(NULL)
-    objres=csectDF()
-    if(is.null(objres)) return(NULL)
-    p1=plotCS(objres,gcols=colGrps()[levels(objres$Df$Grp)],
-              miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy))$plot
-    p1$addParams(dom = 'plotcs')
-    return(p1)
-  })
   
   output$ctCS<-DT::renderDataTable(modelCSpw(),
             options = list(paging = F,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
@@ -547,95 +553,19 @@ shinyServer(function(input, output, session) {
     c("Outliers: ",unname(louts))
   })
   
-  ############################################################################
-  
-  output$downloadCS <- downloadHandler(
-    filename <- function() paste(fileData()$Ori,'-CS.',tolower(input$csplot),sep=""),
-    content <- function(file) {
-      if(input$csplot=='Svg'){
-        require(svglite)
-        svglite(file, width =as.numeric(input$cswidth), height =as.numeric(input$csheight))
-      }
-      if(input$csplot=='Png')
-        png(file, width =as.numeric(input$cswidth)*96, height =as.numeric(input$csheight)*96)
-      
-      objres=csectDF()
-      if(!is.null(objres)){
-      p2=plotCS(objres,gcols=colGrps()[levels(objres$Df$Grp)],
-                miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy),retplot=FALSE)
-      par(mar=c(3.4,4,1,.1),lwd=2,cex=input$cscex,cex.axis=input$cscex,cex.lab=input$cscex)
-      exportCS(p2,dogrps=input$csplot=='Svg',cexpt=as.numeric(input$cscexpt))
-      }
-      dev.off()
-      if(input$csplot=='Svg') trans(file)
-    },
-    contentType = ifelse(input$csplot=='Svg','image/svg','image/png')
-  )
-  
-  
-  output$downloadKM <- downloadHandler(
-    filename <- function() paste(fileData()$Ori,'-KM.',tolower(input$kmfplot),sep=""),
-    content <- function(file) {
-      if(input$kmfplot=='Svg'){
-        require(svglite)
-        svglite(file, width =as.numeric(input$kmwidth), height =as.numeric(input$kmheight))
-      }
-      if(input$kmfplot=='Png')
-        png(file, width =as.numeric(input$kmwidth)*96, height =as.numeric(input$kmheight)*96)
-      
-      ndf=ndfKM()
-      if(!is.null(ndf)){
-        p1=plotKM(ndf, gcols=colGrps()[levels(ndf$Df$Grp)],shift=as.numeric(input$kmshift),
-                  lwd=as.numeric(input$kmlwd),retplot=FALSE)
-        par(mar=c(5.5,5,.5,.5),lwd=2,cex=input$kmcex,cex.axis=input$kmcex,cex.lab=input$kmcex)
-        exportKM(p1,lwd=as.numeric(input$kmlwd),cexpt=as.numeric(input$kmcexpt),dogrps=input$csplot=='Svg')
-      }
-      dev.off()
-      if(input$kmfplot=='Svg') trans(file)
-    },
-    contentType = ifelse(input$kmfplot=='Svg','image/svg','image/png')
-  )
-  
-  output$downloadTC <- downloadHandler(
-    filename <- function() paste(fileData()$Ori,'-TC.',tolower(input$tcfplot),sep=""),
-    content <- function(file) {
-      if(input$tcfplot=='Svg'){
-        require(svglite)
-        svglite(file, width =as.numeric(input$tcwidth), height =as.numeric(input$tcheight),standalone = TRUE)
-      }
-      if(input$tcfplot=='Png')
-        png(file, width =as.numeric(input$tcwidth)*96, height =as.numeric(input$tcheight)*96)
-      
-      par(mar=c(3.4,4,1,.1),lwd=2,lend=0,cex=input$tccex,cex.axis=input$tccex,cex.lab=input$tccex)
-      cdat=dat()
-      resp=input$response
-      lgrps=input$vars
-      
-      lmids=cdat$dataM$Id[cdat$dataM$Use]
-      cdat$data=cdat$data[cdat$data$Id%in%lmids,]
-      cdat$dataM=cdat$dataM[cdat$dataM$Id%in%lmids,]
 
-      df=cbind(cdat$data[,c(resp,"Tp")],cdat$dataM[cdat$data$Id,])
-      names(df)[1]=resp
-      df$color=colGrps()[as.character(df$Grp)]
-      h1=plotLineC(df,resp,lgrps,input$forcezero,defzero=as.numeric(input$tcdef),
-                   miny=as.numeric(input$tcminy),maxy=as.numeric(input$tcmaxy))[-1]
-      exportTC(h1,dogrps=(input$tcfplot=='Svg'),type=input$tcfplottyp,se=input$tcse=='SE')
-      dev.off()
-      if(input$tcfplot=='Svg') trans(file)
-    },  contentType = ifelse(input$tcfplot=='Svg','image/svg','image/png')
-  )
+  #########################################################################################################################
+  ####### Export reports
   
-  ############################################################################
- output$exporttxtDS<-downloadHandler(
+  output$exporttxtDS<-downloadHandler(
     filename = function() paste(fileData()$Ori,"-data.tsv",sep=""),
     content = function(file) {
-      what=sapply(downloadFile(dat(),ndigit=as.numeric(input$ndigits)),paste,collapse='\t')
+      what=sapply(downloadFile(dat(),ndigit=as.numeric(input$ndigits),trans=input$exporttrans),paste,collapse='\t')
       cat(what, file = file, sep = "\n")
     }
   )
   
-  ############################################################################
+  #############
   output$exporttxtLG <- downloadHandler(
     filename = function() {
       paste(fileData()$Ori,"-LG.", sep = '', switch(
@@ -643,7 +573,7 @@ shinyServer(function(input, output, session) {
       ))
     },
     content = function(file) {
-      src <- normalizePath('reportLG.Rmd')
+      src <- normalizePath('report/reportLG.Rmd')
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       file.copy(src, 'reportLG.Rmd',overwrite=T)
@@ -651,7 +581,7 @@ shinyServer(function(input, output, session) {
       ifile=fileData()$Ori
       objres=modelLG()
       formatpw=modelLGpw()
-      plotdata=plotDiagLG(objres,colGrps()[levels(objres$data$Grp)],typplot='None')
+      plotdata=prepDiagLG(objres)
       
       out <- render('reportLG.Rmd', switch(
         input$formatLG,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
@@ -668,16 +598,16 @@ shinyServer(function(input, output, session) {
       ))
     },
     content = function(file) {
-      src <- normalizePath('reportKM.Rmd')
+      src <- normalizePath('report/reportKM.Rmd')
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       file.copy(src, 'reportKM.Rmd',overwrite=T)
       
       ifile=fileData()$Ori
       objres=ndfKM()
+      print(objres)
       modKM=modelKM()
-      p1=plotKM(objres, gcols=colGrps()[levels(objres$Df$Grp)],shift=as.numeric(input$kmshift),
-                lwd=as.numeric(input$kmlwd),retplot=FALSE)
+      p1=plotKM(objres,shift=as.numeric(input$kmshift),lwd=as.numeric(input$kmlwd),retplot=FALSE)
       
       out <- render('reportKM.Rmd', switch(
         input$formatKM,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
@@ -694,19 +624,20 @@ shinyServer(function(input, output, session) {
       ))
     },
     content = function(file) {
-      src <- normalizePath('reportCS.Rmd')
+      src <- normalizePath('report/reportCS.Rmd')
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
       file.copy(src, 'reportCS.Rmd',overwrite=T)
       
+      #########
       ifile=fileData()$Ori
       objres=csectDF()
-      mod=modelCS()
+      csres=modelCS()
       formatpw=modelCSpw()
-      plotdata=plotDiagCS(mod,colGrps()[levels(mod$data$Grp)],typplot='None')
-      p2=plotCS(objres,gcols=colGrps()[levels(objres$Df$Grp)],
+      diagdata=prepDiagCS(csres)
+      retplotcs=plotCS(objres,
                 miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy),retplot=FALSE)
-      
+      #########
       out <- render('reportCS.Rmd', switch(
         input$formatCS,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
       ))
@@ -714,5 +645,115 @@ shinyServer(function(input, output, session) {
     }
   )
   
+  #########################################################################################################################
+  ####### Download images
+  output$downloadCSsvg <- downloadHandler(
+    filename <- function() paste(fileData()$Ori,'-CS.svg',sep=""),
+    content <- function(file) {
+      require(svglite)
+      svglite(file, width =as.numeric(input$cswidth), height =as.numeric(input$csheight))
+      
+      objres=csectDF()
+      if(!is.null(objres)){
+        p2=plotCS(objres,
+                  miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy),retplot=FALSE)
+        par(mar=c(3.4,4,1,.1),lwd=2,cex=input$cscex,cex.axis=input$cscex,cex.lab=input$cscex)
+        exportCS(p2,dogrps=TRUE,cexpt=as.numeric(input$cscexpt))
+      }
+      dev.off()
+      transsvg(file)
+    },
+    contentType = 'image/svg'
+  )
+  
+  output$downloadCSpng <- downloadHandler(
+    filename <- function() paste(fileData()$Ori,'-CS.png',sep=""),
+    content <- function(file) {
+      png(file, width =as.numeric(input$cswidth)*96, height =as.numeric(input$csheight)*96)
+      objres=csectDF()
+      if(!is.null(objres)){
+        p2=plotCS(objres,
+                  miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy),retplot=FALSE)
+        par(mar=c(3.4,4,1,.1),lwd=2,cex=input$cscex,cex.axis=input$cscex,cex.lab=input$cscex)
+        exportCS(p2,dogrps=FALSE,cexpt=as.numeric(input$cscexpt))
+      }
+      dev.off()
+    },
+    contentType ='image/png'
+  )
+  
+  ##################################################################
+  output$downloadKMsvg <- downloadHandler(
+    filename <- function() paste(fileData()$Ori,'-KM.svg',sep=""),
+    content <- function(file) {
+      require(svglite)
+      svglite(file, width =as.numeric(input$kmwidth), height =as.numeric(input$kmheight))
+      ndf=ndfKM()
+      if(!is.null(ndf)){
+        p1=plotKM(ndf,shift=as.numeric(input$kmshift),
+                  lwd=as.numeric(input$kmlwd),retplot=FALSE)
+        par(mar=c(5.5,5,.5,.5),lwd=2,cex=input$kmcex,cex.axis=input$kmcex,cex.lab=input$kmcex)
+        exportKM(p1,lwd=as.numeric(input$kmlwd),cexpt=as.numeric(input$kmcexpt),dogrps=TRUE)
+      }
+      dev.off()
+      transsvg(file)
+    },
+    contentType ='image/svg'
+  )
+  
+  output$downloadKMpng <- downloadHandler(
+    filename <- function() paste(fileData()$Ori,'-KM.png',sep=""),
+    content <- function(file) {
+      png(file, width =as.numeric(input$kmwidth)*96, height =as.numeric(input$kmheight)*96)
+      
+      ndf=ndfKM()
+      if(!is.null(ndf)){
+        p1=plotKM(ndf,shift=as.numeric(input$kmshift),
+                  lwd=as.numeric(input$kmlwd),retplot=FALSE)
+        par(mar=c(5.5,5,.5,.5),lwd=2,cex=input$kmcex,cex.axis=input$kmcex,cex.lab=input$kmcex)
+        exportKM(p1,lwd=as.numeric(input$kmlwd),cexpt=as.numeric(input$kmcexpt),dogrps=FALSE)
+      }
+      dev.off()
+    },
+    contentType = 'image/png'
+  )
+  
+  ##################################################################
+  output$downloadTCpng <- downloadHandler(
+    filename <- function() paste(fileData()$Ori,'-TC.png',sep=""),
+    content <- function(file) {
+      png(file, width =as.numeric(input$tcwidth)*96, height =as.numeric(input$tcheight)*96)
+      
+      par(mar=c(3.4,4,1,.1),lwd=2,lend=0,cex=input$tccex,cex.axis=input$tccex,cex.lab=input$tccex)
+      cdat=dat()
+      print(colGrps())
+      lgdata=getLGmat(cdat,resp=input$response,lgrps=input$vars,gcols=colGrps()[as.character(input$vars)],trans=input$trans)
+      h1=plotLineC(lgdata,
+                   trans=input$trans,type=input$tcfplottyp,
+                   force2zero=input$showPanel2,defzero=as.numeric(input$tcdef),
+                   miny=as.numeric(input$tcminy),maxy=as.numeric(input$tcmaxy))[-1]
+      exportTC(h1,dogrps=F,type=input$tcfplottyp)
+      dev.off()
+    },  contentType = 'image/png'
+  )
+  
+  output$downloadTCsvg <- downloadHandler(
+    filename <- function() paste(fileData()$Ori,'-TC.svg',sep=""),
+    content <- function(file) {
+      require(svglite)
+      svglite(file, width =as.numeric(input$tcwidth), height =as.numeric(input$tcheight),standalone = TRUE)
+      par(mar=c(3.4,4,1,.1),lwd=2,lend=0,cex=input$tccex,cex.axis=input$tccex,cex.lab=input$tccex)
+      cdat=dat()
+      lgdata=getLGmat(cdat,resp=input$response,lgrps=input$vars,gcols=colGrps()[as.character(input$vars)],trans=input$trans)
+      h1=plotLineC(lgdata,trans=input$trans,type=input$tcfplottyp,
+                   force2zero=input$showPanel2,defzero=as.numeric(input$tcdef),
+                   miny=as.numeric(input$tcminy),maxy=as.numeric(input$tcmaxy))[-1]
+      exportTC(h1,dogrps=T,type=input$tcfplottyp)
+      dev.off()
+      transsvg(file)
+    },  contentType = 'image/svg'
+  )
+  
+  #############
   
 })

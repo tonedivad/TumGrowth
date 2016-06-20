@@ -1,50 +1,60 @@
-
-compModLG<-function(lgdf,bfco=0.1,checkvar=TRUE){
+.inlme<-function(lgdf,checkvar=TRUE,pthr=0.05,control=lmeControl()){
   
-  lgdf$Id=factor(lgdf$Id)
-  lgdf=lgdf[order(lgdf$Grp,lgdf$Id,lgdf$Tp),]
-  lgdf$out=FALSE
-  ######
- # print("OKKK")
-  ga=Gls(Resp~Tp*Grp, data=lgdf,correlation=corCompSymm(form=~1|Id),method="REML")
-  ga2=Gls(Resp~Tp*Grp, data=lgdf,correlation=corCAR1(form=~Tp|Id),method="REML")
+  ga=lme(lgdf,fixed=Resp~Tp*Grp,subset=!out,random=~1|Id,method="REML",control=control)
+  ga2=update(ga,correlation=corCAR1(form=~Tp|Id))
   if(AIC(ga2)<AIC(ga)) ga=ga2
   if(checkvar){
-    gaw=update(ga,weights=varIdent(form=~1|Grp))
+    gaw<-update(ga,weights=varIdent(form=~1|Grp))
     if(AIC(gaw)<AIC(ga)){
       ll1=logLik(ga)
       ll2=logLik(gaw)
-      if((1-pchisq(as.numeric(ll2-ll1)*2,attr(ll2,"df")-attr(ll1,"df")))<0.05) ga=gaw
+      if((1-pchisq(as.numeric(ll2-ll1)*2,attr(ll2,"df")-attr(ll1,"df")))<pthr) ga=gaw
     }
   }
-  # print("OKKK1")
+  ga=update(ga,method="ML")
+  return(ga) 
+}
+
+compModLG<-function(lgmat,bfco=0.1,checkvar=TRUE,checktp=TRUE){
   
-  iresid=residuals(ga,'pearson')
+  ######
+#  print("OKKK")
+  
+
+  lgdf=groupedData(Resp~Tp|Id/Grp,lgmat$Df)
+  lgdf$out=FALSE
+  control=lmeControl(opt="nlminb")
+  try(ga<-inlme(lgdf,control=control),TRUE)
+  if("try-error"%in%class(gaw)){
+    control=lmeControl(opt="optim")
+    ga<-inlme(lgdf,control=control)
+  }
+  
+  iresid=scale(residuals(ga,level=0,type='response'))[,1]
   names(iresid)=rownames(lgdf)
   out=outlierTest(lm(iresid~1),cutoff = bfco)
   if(any(out$signif)){
-    #    print(out)
     lgdf$out[which(rownames(lgdf)%in%names(out$bonf.p))]=T
-    ga=Gls(Resp~Tp*Grp, data=lgdf[!lgdf$out,],correlation=corCompSymm(form=~1|Id),method="REML")
-    ga2=Gls(Resp~Tp*Grp, data=lgdf[!lgdf$out,],correlation=corCAR1(form=~Tp|Id),method="REML")
-    if(AIC(ga2)<AIC(ga)) ga=ga2
-    if(checkvar){
-      gaw=update(ga,weights=varIdent(form=~1|Grp))
-      if(AIC(gaw)<AIC(ga)){
-        ll1=logLik(ga)
-        ll2=logLik(gaw)
-        if((1-pchisq(as.numeric(ll2-ll1)*2,attr(ll2,"df")-attr(ll1,"df")))<0.05) ga=gaw
-      }
+    control=lmeControl(opt="nlminb")
+    try(ga<-inlme(lgdf),TRUE)
+    if("try-error"%in%class(gaw)){
+      control=lmeControl(opt="optim")
+      ga<-inlme(lgdf,control=control)
     }
   }
   
-  ga2=update(ga,.~.,method="ML")
-  m2=as.matrix(rms:::anova.rms(ga2,ss=FALSE))
-  ga3=update(ga2,.~Tp+Grp,method="ML")
-  m3=as.matrix(rms:::anova.rms(ga3,ss=FALSE))
-  mwald=rbind(m2[5,],m3[1:2,])
+  ga2<-try(update(ga,fixed.=.~Tp+Grp),T)
+  if("try-error"%in%class(ga2)){
+    ga<-try(update(ga,.~.,control=lmeControl(opt='optim')),T)
+    ga2<-try(update(ga,.~Tp+Grp),T)
+  }
   
-  lrt=2*abs(c(ga2$logLik,update(ga3,.~Grp,method="ML")$logLik,update(ga3,.~Tp,method="ML")$logLik)-ga3$logLik)
+  
+  m2=sapply(Anova(ga,test="Chi"),function(x) x[3])
+  m3=sapply(Anova(ga2,test="Chi"),function(x) x[1:2])
+  mwald=rbind(m2,m3)
+  
+  lrt=2*abs(c(ga2$logLik,update(ga2,fixed.=.~Grp)$logLik,update(ga2,fixed.=.~Tp)$logLik)-ga2$logLik)
   mlrt=cbind(lrt,c(1,1,nlevels(lgdf$Grp)-1))
   mlrt=cbind(mlrt,1-pchisq(mlrt[,1],mlrt[,2]))
   antab=cbind(apply(mwald,1,function(x) sprintf("%.2f  (d.f.=%d), p<%s%s",x[1],x[2],.myf(x[3]),.myfpv(x[3]))),
@@ -68,11 +78,14 @@ compModLG<-function(lgdf,bfco=0.1,checkvar=TRUE){
   jtab[i,5]=-jtab[i,5]
   }
   
-#   
-#   ct=contrMat(table(lgdf$Grp),type="Tukey")[,-1,drop=F]
-#   jt1=cbind(0,0,ct,matrix(0,nrow=nrow(ct),ncol=ncol(ct)))
-#   jt2=cbind(0,0,matrix(0,nrow=nrow(ct),ncol=ncol(ct)),ct)
-#   jtab=data.frame(do.call("rbind",lapply(1:nrow(jt1),function(i) esticon(ga,rbind(jt1[i,],jt2[i,]),join=T))))
+  
+  ct=contrMat(table(lgdf$Grp),type="Tukey")[,-1,drop=F]
+  jt1=cbind(0,0,ct,matrix(0,nrow=nrow(ct),ncol=ncol(ct)))
+  jt2=cbind(0,0,matrix(0,nrow=nrow(ct),ncol=ncol(ct)),ct)
+  jtab=data.frame(do.call("rbind",lapply(1:nrow(jt1),function(i) esticon(ga,rbind(jt1[i,],jt2[i,]),join=T))))
+  sapply(1:nrow(jt1),function(i) linearHypothesis(ga2,rbind(jt1[i,],jt2[i,]))[2,2])
+  
+
 #   
 #   ltps=sort(unique(lgdf$Tp))
 #   amct=lapply(1:nrow(jt1),function(i) 
@@ -91,7 +104,7 @@ compModLG<-function(lgdf,bfco=0.1,checkvar=TRUE){
 #   
   ################################################################################################
   # Format output
-  tab=nlme:::summary.gls(ga2)$tT
+  tab=summary(ga2)$tT
   rownames(tab)=gsub("^Tp * Grp=","Tp:",gsub("^Grp=","",rownames(tab)))
   tab=data.frame(tab)
   tab[,4]=sapply(tab[,4],function(x) sprintf("%.5f",x))

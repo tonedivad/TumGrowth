@@ -1,4 +1,4 @@
-trans<-function(inam){
+transsvg<-function(inam){
   doc=scan(inam,what="raw",sep="\n")
   for(k in grep(">Gst</text",doc)) doc[[k]]="<g>"
   for(k in grep(">Gend</text",doc)) doc[[k]]="</g>"
@@ -6,7 +6,10 @@ trans<-function(inam){
 }
 
 ##################################################################################################
-exportTC<-function(h1,dogrps=TRUE,type='All',se=TRUE){
+exportTC<-function(h1,dogrps=TRUE,type='tc'){
+  
+  if(length(type)==0) type='tc'
+  se=('mese'%in%type)
   
   xtk=h1$xlim
   ytk=h1$ylim
@@ -24,7 +27,7 @@ exportTC<-function(h1,dogrps=TRUE,type='All',se=TRUE){
   if(dogrps)    graphics:::text(mean(xtk)*.92,mean(ytk[-1])*.92,"Gend")
   
   
-  if(type!="All"){
+  if(any(c('mese','mesd')%in%type)){
     tmppred=h1$sesd
     tmppred$ymin=round(tmppred$y-ifelse(se,1,0)*tmppred$se-ifelse(se,0,1)*tmppred$sd,3)
     tmppred$ymax=round(tmppred$y+ifelse(se,1,0)*tmppred$se+ifelse(se,0,1)*tmppred$sd,3)
@@ -42,7 +45,7 @@ exportTC<-function(h1,dogrps=TRUE,type='All',se=TRUE){
     })
   }
   
-  if(type%in%c("All","Both")){
+  if(any(c('tc')%in%type)){
     idf=h1$df
   for(igrp in unique(idf$Grp)){
     if(dogrps)  graphics:::text(mean(xtk)*.95,mean(ytk[-1])*.78,"Gst")

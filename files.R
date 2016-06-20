@@ -1,4 +1,4 @@
-verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE,sumids=FALSE){
+verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE){
   
   df$IdTp=paste(df$tp,df$Id,sep=";;")
   df$IdoTp=paste(df$tp,df$Idold,sep=";;")
@@ -67,12 +67,12 @@ verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE,sumids=FALSE){
 }
 
 #############################################################################################
-loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TRUE,exclzer=FALSE,sumids=FALSE){
+loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TRUE,exclzer=FALSE,set2surv=FALSE){
 
   tmp=suppressMessages(strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw",quiet=TRUE)),"\t"))
   
   if(!is.numeric(ndigit) | is.na(ndigit)) ndigit=4
-  ndigit=max(1,ndigit)
+  #ndigit=max(1,ndigit)
   
   whichtps=grep("^[0-9]+$",tmp[[1]])
   whichgrp=grep("^[group]+$",tolower(tmp[[1]]))[1]
@@ -85,7 +85,11 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
   
   grps=sapply(tmp,function(x) gsub(" ","",x[whichgrp]))
   if(length(whichid)==0){
-    ids=paste(substr(grps,1,3),".M",sep="")
+    mgrps=gsub("[^a-zA-Z]","",grps)
+    l1=which(nchar(mgrps)>6)
+    if(length(l1)>0)
+      mgrps[l1]=paste(substr(mgrps[l1],1,3),substr(mgrps[l1],nchar(mgrps[l1])-1,nchar(mgrps[l1])),sep=".")
+    ids=paste(mgrps,".M",sep="")
     for(k in unique(ids)) ids[ids==k]=paste(ids[ids==k],1:sum(ids==k),sep="")
   } else ids=sapply(tmp,function(x) gsub(" ","",x[whichid]))
 
@@ -121,17 +125,17 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
   #print(dfm)
   
   ####################################################################################
-  ## get the data
+  ## get the meas data
   if(length(whichtps)>1)  mat=t(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))))
   if(length(whichtps)==1)  mat=matrix(sapply(lmices,function(x) as.numeric(gsub(",",".",tmp[[x]][whichtps]))),ncol=1)
   
   lmeas=tmp[[2]][whichtps]=gsub(" ","",tmp[[2]][whichtps])
   umeas=unique(lmeas)
-  ## is there any .log??
-  if(length(grep("\\.log$",umeas))>0){
-    llog=grep("\\.log$",umeas)
-    llog=llog[sapply(llog,function(x) gsub("\\.log$","",umeas[x])%in%umeas)]
-    if(length(llog)>0) umeas=umeas[-llog]
+  
+  ## is there any .log/.sqrt/.curt from previous parsing??
+  llog=c(grep("\\.log$",umeas),grep("\\.sqrt$",umeas),grep("\\.curt$",umeas))
+  if(length(llog)>0){
+    umeas=umeas[-llog]
     whichtps=whichtps[lmeas%in%umeas]
   }
   lmeas=tmp[[2]][whichtps]
@@ -144,7 +148,7 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
     l=which(lmeas==imeas)
     df=data.frame(X=round(as.vector(mat[,l]),ndigit),Id=rep(uids,length(l)),tp=rep(ltps[l],each=nrow(mat)),
                   Grp=rep(grps,length(l)),Idold=rep(uidsold,length(l)),stringsAsFactors = F)
-    df2=verifOne(df,dfm,trim,trimzer,exclzer,sumids)
+    df2=verifOne(df,dfm,trim,trimzer,exclzer)
     names(df2)[1]=imeas
     allmeas[[imeas]]=df2
    }
@@ -183,29 +187,41 @@ loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TR
     df=df[which(df$Tp>=0),]
   }
   
+  lResp2=NULL
   for(i in lResp){
     v=round(log(df[,i]),max(3,ndigit-1))
     if(!imputezer) v[is.infinite(v)]=NA
-    if(imputezer) v[is.infinite(v)]=log(min(df[df[,i]>0,i],na.rm=T)/2)
-    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.2)){
+    if(imputezer) v[is.infinite(v)]=round(log(min(df[df[,i]>0,i],na.rm=T)/2),max(3,ndigit-1))
+    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.15)){
       df[,paste(i,"log",sep=".")]=v
-      lResp=c(lResp,paste(i,"log",sep="."))
+      lResp2=c(lResp2,paste(i,"log",sep="."))
     }
+    v=round(sqrt(df[,i]),ndigit)
+    if(sum(is.na(v) | is.infinite(v))<(nrow(df)*.15)){
+      df[,paste(i,"sqrt",sep=".")]=v
+      lResp2=c(lResp2,paste(i,"sqrt",sep="."))
+      df[,paste(i,"curt",sep=".")]=v^(2/3)
+      lResp2=c(lResp2,paste(i,"curt",sep="."))
+    }
+    
   }
   df=df[,c(which(names(df)%in%lResp),which(!names(df)%in%lResp))]
   rownames(df)=paste(df$Id,df$Tp,sep='.')
   
-#   dfm$colorI=getCols(dfm$Grp,as.character(dfm$Id))[as.character(dfm$Id)]
-#   dfm$colorG=getCols(dfm$Grp)[as.character(dfm$Grp)]
-#   dfm$colorL=getCols(dfm$Grp,what=1)[as.character(dfm$Grp)]
+  ## set Surv to TRUE for animal measured at the last experiment day
+  if(length(whichsurv)==0 & set2surv){
+    lnas=names(which(tapply(df$Tp,df$Id,max)==max(df$Tp)))
+  if(length(lnas)>0) dfm[lnas,]$Surv=TRUE
+  }
+  
 
-  list(data=df,dataM=dfm,Resp=lResp,Excl=unique(dfm$Id[!dfm$Use]))
+  list(data=df,dataM=dfm,Resp=lResp,RespTr=lResp2,Excl=unique(dfm$Id[!dfm$Use]))
 }
 ########################################################################################################################
 ########################################################################################################################
 
 #############################################################################################
-downloadFile<-function(cdat,ndigit=4){
+downloadFile<-function(cdat,ndigit=4,trans=T){
   
   dat=cdat$data
   datm=cdat$dataM
@@ -219,7 +235,9 @@ downloadFile<-function(cdat,ndigit=4){
   dat$Id=rep(lmids,each=length(ltps))
   dat$Tp=rep(ltps,length(lmids))
   
-  l=c(cdat$Resp[-grep("\\.log$",cdat$Resp)],cdat$Resp[grep("\\.log$",cdat$Resp)])
+  l=cdat$Resp
+  if(trans) l=c(l,cdat$RespTr)
+  
   m=do.call("cbind",lapply(l,function(x){
     tt=do.call("cbind",tapply(dat[,x],dat$Tp,round,max(3,ndigit-1)))
     colnames(tt)=paste(x,colnames(tt),sep=";;")
