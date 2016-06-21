@@ -53,18 +53,20 @@ The parsing takes care of the comma/dot issue to get the numbers right but anyth
 | PBS  | x|  x | animal2  | 2.5 | 10.3 | 15.6  |15.6| 432 |15.6 | like |
 | PBS  | x|   | animal3  | 0 | 14.3 | 25.6  |65.6| 432 |85.1 |  |
 | Drug | x | x | animal4 | 5 | 10 | 15 | 23| 147| 60 | b10
-| Drug | x | x | animal5 | 2.6 | 5.4  | 9.7  |  | 285| eighty | 10 |
+| Drug | x |  | animal5 | 2.6 | 5.4  | 9.7  | 0 | 285| eighty | 0 |
 | Drug  | x| x | animal6 | 0.6 | 0  | 0.7  |  0 | 120 | 0 | 613 |
 
 This is interpreted as: 
 
-- Some measures named *V* has been recorded at 0/5/10/15/20 and another one named *W* at 15 (first 2 rows, mandatory);
-- 3 *PBS* abd 3 *Drug*-treated mice  (**Grp**, mandatory column);
-- Animals are called  *animal1*,  *animal2* etc...  (**Mid**, optional column);
+- Some measures named *V* has been recorded at 2/5/10/15/20 and another one 
+named *W* at 15 (first 2 rows, mandatory);
+- 3 *PBS* abd 3 *Drug*-treated mice (**Grp**, mandatory column);
+- Animals are called *animal1*,*animal2* etc... (**Mid**, optional column);
 - Use them all for graphing and stats (**Use**, optional column);
-- Last recorded day after parsing is considered as event for *animal3*  (**Surv**, optional column);
+- Last recorded day is censored for *animal3* (**Surv**, optional column);
 - Measurements in *V* at day 15 and 20 are not valid for *animal5*;
-- ```TumGrowth``` is not interested in the last column as the first cell is not a number.
+- ```TumGrowth``` is not interested in the last column as the first 
+cell is not a number.
 
 
 

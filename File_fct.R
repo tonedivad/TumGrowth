@@ -71,7 +71,7 @@ verifOne<-function(df,dfm,trim=TRUE,trimzer=TRUE,exclzer=FALSE){
 
 #############################################################################################
 ## Parse the orginal datafile
-loadFile<-function(ifile,ndigit=4,imputezer=TRUE,setday0=NA,trim=TRUE,trimzer=TRUE,exclzer=FALSE,set2surv=FALSE){
+loadFile<-function(ifile,ndigit=4,trimzer=TRUE,trim=TRUE,setday0=NA,exclzer=FALSE,imputezer=TRUE,set2surv=FALSE){
 
   tmp=suppressMessages(strsplit(gsub("\"","",scan(ifile,sep="\n",what="raw",quiet=TRUE)),"\t"))
   

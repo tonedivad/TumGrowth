@@ -15,7 +15,7 @@ exportTC<-function(h1,dogrps=TRUE,type='tc'){
   ytk=h1$ylim
   
   par(xpd=F)
-  re=plot(range(xtk),range(ytk),pch=16,cex=0,axes=F,ylim=range(ytk),xlim=range(xtk),xlab="Time (d)",ylab=h1$Resp)
+  re=plot(range(xtk),range(ytk),pch=16,cex=0,axes=F,ylim=range(ytk),xlim=range(xtk),xlab="Time",ylab=h1$Title)
   
   if(dogrps)  graphics:::text(mean(xtk)*.99,mean(ytk[-1])*.98,"Gst")
   axis(1,at=xtk,pos=ytk[1]-range(ytk)*.02,lwd=2,tick=F)

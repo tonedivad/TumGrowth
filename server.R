@@ -730,8 +730,7 @@ shinyServer(function(input, output, session) {
       cdat=dat()
       print(colGrps())
       lgdata=getLGmat(cdat,resp=input$response,lgrps=input$vars,gcols=colGrps()[as.character(input$vars)],trans=input$trans)
-      h1=plotLineC(lgdata,
-                   trans=input$trans,type=input$tcfplottyp,
+      h1=plotLineC(lgdata,type=input$tcfplottyp,
                    force2zero=input$showPanel2,defzero=as.numeric(input$tcdef),
                    miny=as.numeric(input$tcminy),maxy=as.numeric(input$tcmaxy))[-1]
       exportTC(h1,dogrps=F,type=input$tcfplottyp)

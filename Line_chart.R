@@ -5,6 +5,7 @@ getLGmat<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),
   
   if(length(lgrps)==0) lgrps=levels(cdat$dataM$Grp)
   iresp=resp
+  print(trans)
   if(trans!='None') iresp=paste(resp,tolower(trans),sep=".")
   lmids=cdat$dataM$Id[cdat$dataM$Use & cdat$dataM$Grp%in%lgrps]
   
@@ -59,6 +60,8 @@ plotLineC<-function(lgdata,type=c('tc','mese'),force2zero=FALSE,defzero=NA,miny=
     data.frame(cbind(tmp,x=tapply(idf$Tp[l],idf$Tp[l],unique)),Grp=i,color=idf$color[l][1],stringsAsFactors=F)
   }))
   ##################################
+  title=paste("Response:",lgdata$Resp)
+  if(lgdata$Trans!="None") title=paste(title," (",lgdata$Trans,")",sep="")
   
   levgrp=levels(idf$Grp)
   idf$Grp=as.character(idf$Grp)
@@ -90,12 +93,11 @@ plotLineC<-function(lgdata,type=c('tc','mese'),force2zero=FALSE,defzero=NA,miny=
     a$tooltip( formatter = "#! function() { return this.point.Id + ' (' + this.point.Grp + ') at ' +
                this.point.x + ': ' + this.point.y ; } !#")
   }
-  
-  a$yAxis(title = list(text = "Response"), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
+  a$yAxis(title = list(text = title), min = min(ylim), max = max(ylim), tickInterval = diff(ylim)[1])
   a$xAxis(title = list(text = "Time"), min =  min(xlim), max = max(xlim), tickInterval = diff(xlim)[1])
   a$legend(verticalAlign = "right", align = "right", layout = "vertical", title = list(text = "Mice"))
   
-  return(list(plot=a,df=idf,sesd=tmpdata,xlim=xlim,ylim=ylim,Resp=resp))
+  return(list(plot=a,df=idf,sesd=tmpdata,xlim=xlim,ylim=ylim,Resp=resp,Title=title))
   
   
 }

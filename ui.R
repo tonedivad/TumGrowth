@@ -73,8 +73,11 @@ shinyUI(
                        radioButtons("dataInput", NULL, list("Load sample data"=1,"Upload file"=2)),
                        conditionalPanel(condition="input.dataInput=='1'",
                                         radioButtons("sampleData", "Example data", 
-                                                     list("Longitudinal test"="Test1","Kaplan-Meier test"="Test2",
-                                                          "Cross-sectional test"="TestCRM",'Toy dataset'='Toy'))
+                                                     list('Toy dataset'='Toy',
+                                                  #        'KO'='KOLB2008.txt',
+                                                          'Longitudinal test'='Test1',
+                                                          'Kaplan-Meier test'='Test2',
+                                                          'Cross-sectional test'='TestCRM'))
                        ),
                        conditionalPanel(condition="input.dataInput=='2'",
                                         h5('Tab separated format (see help)'),
@@ -240,7 +243,7 @@ shinyUI(
         tabPanel("Line charts",
                  bsCollapse(id = "collapseLC",open = c("Overlay"),multiple=TRUE,
                             bsCollapsePanel("Overlay", showOutput("plottcs", "highcharts"),style="info"),
-                            bsCollapsePanel("Individual models" ,style="info"),
+                        #    bsCollapsePanel("Individual models" ,style="info"), ## to be done!
                             bsCollapsePanel("Further information", includeMarkdown("help/About-lc.md"),style = "info")
                  )
         ),
