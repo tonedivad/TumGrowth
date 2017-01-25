@@ -253,7 +253,9 @@ compModLG<-function(lgmat,bfco=0.1,adjust=TRUE){
 }
 
 ################################################################################################
-formatLGpw<-function(lgres,ref='All',backtrans=F){
+formatLGpw<-function(lgres,ref='All',padjust="holm",backtrans=F){
+  
+  if(padjust=='no') padjust="none"
   
   ibtfct<-function(x) x;collab="Difference"
   # if(lgres$Trans=="Log" & backtrans){btfct<-function(x) exp(x);collab='Ratio'}
@@ -277,13 +279,13 @@ formatLGpw<-function(lgres,ref='All',backtrans=F){
     sprintf("%.3f [%.3f;%.3f]",ibtfct(x[1]),ibtfct(x[2]),ibtfct(x[3])))
   
   top=data.frame(pwt[,c("Largest","Smallest"),drop=F],Contrast=dcts,Df=sprintf('%.2f',pwt[,"Df"]),
-                 Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),stringsAsFactors=FALSE)
+                 Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,padjust)),stringsAsFactors=FALSE)
   if("Segment"%in%colnames(pwt)){
     lsegs=tapply(lgres$pred$Tp,(lgres$pred$Tp2>0)+1,function(x) paste(range(x),collapse="-"))[c("1","2")]
 #    print(str(lsegs))
     tsegs=as.vector(lsegs[as.character(pwt$Segment)])
     top=data.frame(TimeSeg= tsegs,pwt[,c("Largest","Smallest"),drop=F],Contrast=dcts,Df=sprintf('%.2f',pwt[,"Df"]),
-                   Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),stringsAsFactors=FALSE)
+                   Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,padjust)),stringsAsFactors=FALSE)
   }
   
    if(length(ref)==1){

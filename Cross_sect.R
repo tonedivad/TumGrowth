@@ -245,8 +245,9 @@ compCS<-function(objres,bfco=0.1,checkvar=TRUE){
 
 ##############
 ## format pairwise
-formatCSpw<-function(csres,ref='All',backtrans=F){
+formatCSpw<-function(csres,ref='All',padjust="holm",backtrans=F){
   
+  if(padjust=='no') padjust="none"
 
   btfct<-function(x) x;collab="Difference"
   if(csres$Trans=="Log" & backtrans){btfct<-function(x) exp(x);collab='Ratio'}
@@ -270,8 +271,8 @@ formatCSpw<-function(csres,ref='All',backtrans=F){
   dcts=apply(as.matrix(pwt[,3:5]),1,function(x) sprintf("%.3f [%.3f;%.3f]",btfct(x[1]),btfct(x[2]),btfct(x[3])))
   
   top=data.frame(pwt[,1:2],dcts,
-                 Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,"holm")),
-                 WilcoxPvalue=.myf(pwt$Wil),WilcoxPvalueAdj=.myf(p.adjust(pwt$Wil,"holm")),stringsAsFactors=F)
+                 Pvalue=.myf(pwt$Pval),PvalueAdj=.myf(p.adjust(pwt$Pval,padjust)),
+                 WilcoxPvalue=.myf(pwt$Wil),WilcoxPvalueAdj=.myf(p.adjust(pwt$Wil,padjust)),stringsAsFactors=F)
   names(top)[3]=collab
   if(length(ref)==1){
     top=top[,-2]

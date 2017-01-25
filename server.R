@@ -24,6 +24,9 @@ shinyServer(function(input, output, session) {
                            '#A1D99B','#63BB6D','#2D954D','#006D2C','#BDBDBD','#8A8A8A','#5D5D5D','#252525',
                            '#FEC44F','#F88B22','#D65808','#993404','#C79141','#A5691B','#DFC27D','#7E4808','#543005')
   
+  dataParams <- reactiveValues()
+  dataParams$lastT <- c()
+  
   values <- reactiveValues(
     file1 = NULL
   )
@@ -57,7 +60,7 @@ shinyServer(function(input, output, session) {
     ifile=fileData()
     if (is.null(ifile$Where)) return(NULL)
       cat("Loading",ifile$Where,"\n")
-      print(ifile)
+#      print(ifile)
       shiny:::flushReact()
       lcols$data<-NULL
       setday0=suppressWarnings(as.numeric(input$setday0))
@@ -72,6 +75,28 @@ shinyServer(function(input, output, session) {
   mresptr <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);cdat$RespTr})
   mgrps <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);levels(cdat$dataM$Grp)})
   l2Excl <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);cdat$Excl})
+  censvalt<-reactive({cdat=dat();if(!is.list(cdat)) return(NULL);sort(unique(cdat$data$Tp))})
+  censvalrespos<-reactive({
+    if(is.null(input$responsekm)) return(NULL)
+    cdat=dat();if(!is.list(cdat)) return(NULL)
+    if(!input$responsekm %in%cdat$Resp) return(NULL)
+    vraw=na.omit(cdat$data[,input$responsekm])
+    vraw=round(c(quantile(vraw,.05),max(vraw)),as.numeric(input$ndigits))
+    vraw=pretty(vraw,100)
+    unique(round(vraw,as.numeric(input$ndigits)))
+    })
+  
+  censvalresptfs<-reactive({
+    if(is.null(input$responsekm)) return(NULL)
+    cdat=dat();if(!is.list(cdat)) return(NULL)
+    if(!input$responsekm %in%cdat$Resp) return(NULL)
+    vraw=na.omit(cdat$data[,input$responsekm])
+    vraw=round(c(quantile(vraw,.95),0),input$ndigits)
+    vraw=pretty(vraw,100)
+    unique(round(vraw,as.numeric(input$ndigits)))
+  })
+  
+
   refkm <- eventReactive(input$varskm,input$varskm)
 #  reflg <- eventReactive(eventExpr=modelLGpw(),valueExpr=modelLGpw()$grps)
   refcs <- eventReactive(input$varscs,input$varscs)
@@ -211,41 +236,33 @@ shinyServer(function(input, output, session) {
     radioButtons("radiokm", NULL, choices=nums2,selected=nums2[1],inline=TRUE)
   })
   
-  # OS
-  output$slidekmui<-renderUI({
-    if(is.null(input$responsekm)) return(NULL)
-    cdat=dat()
-    if(!input$responsekm%in%cdat$Resp | !is.list(cdat)) return(NULL)
-    vraw=na.omit(cdat$data[,input$responsekm])
-    valr=pretty(c(quantile(vraw,.05),max(vraw)),100)
-    sliderInput(inputId="slidekm",label=NULL,
-                min=min(valr),max=max(valr),value=max(valr),step =diff(valr)[1])
-  })
-  
-  output$sliderkmtui<-renderUI({
-    if(is.null(input$responsekm)) return(NULL)
-    cdat=dat()
-    if(!input$responsekm%in%cdat$Resp | !is.list(cdat)) return(NULL)
-    valt=sort(unique(cdat$data$Tp))
-    args       <- list(inputId="sliderkmt", label=NULL, ticks=TRUE, value=length(valt)-1,
-                       min=1,max=length(valt),step=1)
-    htmlslider1  <- do.call('sliderInput', args)
-    htmlslider1$children[[2]]$attribs[['data-values']] <- paste(valt, collapse=',')
-    htmlslider1
-  })
-  
   # TFS
   output$slidekmui2<-renderUI({
-    if(is.null(input$responsekm)) return(NULL)
-    cdat=dat()
-    if(!input$responsekm%in%cdat$Resp | !is.list(cdat)) return(NULL)
-    vraw=na.omit(cdat$data[,input$responsekm])
-    valr=pretty(c(quantile(vraw,.95),0),100)
+    valr=censvalresptfs()
+    if(is.null(valr)) return(NULL)
     sliderInput(inputId="slidekm2",label=NULL,
                 min=min(valr),max=max(valr),value=min(valr),step =diff(valr)[1])
   })
   
-  ####### cross sectional
+  # OS
+  output$slidekmui<-renderUI({
+    valr=censvalrespos()
+    if(is.null(valr)) return(NULL)
+    sliderInput(inputId="slidekm",label=NULL,
+                min=min(valr),max=max(valr),value=max(valr),step =diff(valr)[1])
+  })
+
+  output$sliderkmtui<-renderUI({
+    valt=censvalt()
+    if(is.null(valt)) return(NULL)
+    args<- list(inputId="sliderkmt", label=NULL, ticks=TRUE, value=length(valt)-1,
+                min=1,max=length(valt),step=1)
+    htmlslider1  <- do.call('sliderInput', args)
+    htmlslider1$children[[2]]$attribs[['data-values']] <- paste(valt, collapse=',')
+    htmlslider1
+  })
+
+    ####### cross sectional
   output$choicescs<-renderUI({
     nums2=mresp()
     if(is.null(nums2)) return(NULL)
@@ -276,8 +293,8 @@ shinyServer(function(input, output, session) {
     if(!is.list(cdat)) return(NULL)
     df=cdat$data
     df=df[df$Id%in%cdat$dataM$Id[cdat$dataM$Use],]
-    
     valt=sort(unique(df$Tp))
+    #print(valt)
     if(length(valt)==1){ ## only one time points!
       valt=c(valt,valt+1)
       args       <- list(inputId="slidercs", label=NULL, ticks=TRUE, value=0,min=1,max=1,step=1)
@@ -329,7 +346,7 @@ shinyServer(function(input, output, session) {
   #  if(any(!input$responselg%in%mresp()) | any(!input$varslg%in%mgrps() )) return(NULL)
     objres=modelLG()
     if(is.null(objres)) return(NULL)
-    formatLGpw(objres,input$radiolg)
+    formatLGpw(objres,input$radiolg,padjust=gsub(" .*","",tolower(input$radiolgadj)))
   })
   
   diagLG<-reactive({
@@ -343,7 +360,7 @@ shinyServer(function(input, output, session) {
   ndfKM<-reactive({
     if(is.null(input$responsekm)) return(NULL)
     if(is.null(input$slidekm2) & is.null(input$slidekm)) return(NULL)
-     if(any(!input$responsekm%in%mresp()) | any(!input$varskm%in%mgrps() )) return(NULL)
+    if(any(!input$responsekm%in%mresp()) | any(!input$varskm%in%mgrps() )) return(NULL)
     
     cdat<-dat()
     ltps=sort(unique(cdat$data$Tp))
@@ -361,7 +378,7 @@ shinyServer(function(input, output, session) {
     if(input$radiokm=='None') return(NULL)
     objres=ndfKM()
     if(is.null(objres)) return(NULL)
-    compKM(objres,ref=input$radiokm,firth=input$radiokmFirth)
+    compKM(objres,ref=input$radiokm,firth=input$radiokmFirth,padjust=gsub(" .*","",tolower(input$radiokmadj)))
   })
 
   ###### cross sectional
@@ -386,7 +403,7 @@ shinyServer(function(input, output, session) {
     if(any(!input$responsecs%in%mresp()) | any(!input$varscs%in%mgrps()) | is.null(input$grpcsvar)) return(NULL)
     objres=modelCS()
     if(is.null(objres)) return(NULL)
-    formatCSpw(objres,input$grpcsvar)
+    formatCSpw(objres,input$grpcsvar,padjust=gsub(" .*","",tolower(input$radiocsadj)))
   })
   
   diagCS<-reactive({
@@ -400,7 +417,7 @@ shinyServer(function(input, output, session) {
   ############################################################################
   ########## output
   ### data upload
-  output$design <- renderTable({
+  output$design <- DT::renderDataTable({
     cdat=dat()
     if(!is.list(cdat)) return(as.table(matrix(cdat,dimnames=list("Error"," "))))
     
@@ -411,8 +428,11 @@ shinyServer(function(input, output, session) {
       if(input$responsedatexp!='All') lgdf=lgdf[!is.na(cdat$data[,input$responsedatexp]),]
     lgdf$Grp=factor(cdat$dataM[lgdf$Id,]$Grp)
     tab=table(lgdf$Grp,factor(lgdf$Tp,levels=ltps))
-    return(tab)
-  })
+#    print(as.matrix(tab))
+#    return(tab)
+    return(as.data.frame.matrix(tab))
+  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE,info=FALSE),server=TRUE)
+  
   
   output$filetableshort <- DT::renderDataTable({
     if(is.null(input$responsedat) | is.null(input$groupsdat)) return(NULL)
@@ -434,7 +454,7 @@ shinyServer(function(input, output, session) {
     rownames(tow)=tapply(as.character(top$Id),top$Id,unique)
     tow=tow[order(factor(tow[,"Grp"],levels=levels(top$Grp))),]
     tow
-  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE),server=TRUE,
+  },options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE,info=FALSE),server=TRUE,
   selection = list(mode = 'multiple', selected = l2Excl()))
 
   ###### line charts
@@ -462,10 +482,10 @@ shinyServer(function(input, output, session) {
     return(p1)
   })
   
-  output$modelLGsum<-renderTable(modelLG()$coefTab,align="lccccc")
-  output$modelLGeffect<-renderTable(data.frame(modelLG()$AnovaTab),align="lllll")
+  output$modelLGsum<-shiny::renderTable(modelLG()$coefTab,align="lcccc",include.rownames = T,include.colnames = T)
+  output$modelLGeffect<-shiny::renderTable(data.frame(modelLG()$AnovaTab),align="cccc",include.rownames = F,include.colnames = T)
   output$modelLGpw<-DT::renderDataTable({modelLGpw()},
-                    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE),rownames = FALSE)
+                    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE,info=FALSE),rownames = FALSE)
   output$modelLGwei<-renderPrint(modelLG()$weightCoef)
   output$modelLGcor<-renderPrint(modelLG()$corrCoef)
   output$outLG<-renderPrint({
@@ -490,20 +510,25 @@ shinyServer(function(input, output, session) {
     return(p1)
   })
   
-  output$sumKM <- renderTable({
-    sumIdKM(ndfKM())
-  },align="lllllll",include.rownames = F,include.colnames = T)
   
-  output$modKM<-renderTable({
+  output$sumKM <- shiny::renderTable({
+    re=sumIdKM(ndfKM())
+#    print(re)
+    re
+    },align="llllll",include.rownames = F,include.colnames = T)
+
+  
+  output$modKM<-DT::renderDataTable({
     if(is.null(input$responsekm) |is.null(input$radiokm)) return(NULL)
     if(input$radiokm=='None') return(NULL)
-    data.frame(modelKM()$modTab)},align="llll")
+    data.frame(modelKM()$modTab)},
+    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE,info=FALSE), rownames = FALSE)
   
-  output$hrKM<-DT::renderDataTable({
+  output$hrKM<-DT:::renderDataTable({
     if(is.null(input$responsekm) |is.null(input$slidekm) |is.null(input$radiokm)) return(NULL)
     if(input$radiokm=='None') return(NULL)
     modelKM()$hrTab},
-    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
+    options = list(paging = FALSE,searching = FALSE,autoWidth = TRUE,info=FALSE), rownames = FALSE)
 
   ###### cross-sectional
   output$plotcs<-renderChart({
@@ -523,7 +548,7 @@ shinyServer(function(input, output, session) {
     return(p1)
   })
   
-  output$sumCS <- renderTable({
+  output$sumCS <- shiny::renderTable({
     objres=csectDF()
     if(is.null(objres)) return(NULL)
     v=objres$Df$Id
@@ -537,14 +562,17 @@ shinyServer(function(input, output, session) {
       if(itp[1]==itp[2]) return(as.character(itp[1]))
       paste(itp,collapse='-')
     })
-    data.frame(cbind(Group=names(v),N=nnamis,Tp=ltps,Animals=unlist(sapply(v,paste,collapse=" "))))
-  },align="lllll",include.rownames = F,include.colnames = T)
+    re=data.frame(cbind(Group=names(v),N=nnamis,Tp=ltps,Animals=unlist(sapply(v,paste,collapse=" "))))
+    return(re)
+  },align="llll",include.rownames = F,include.colnames = T)
   
   
   output$ctCS<-DT::renderDataTable(modelCSpw(),
-            options = list(paging = F,searching = FALSE,autoWidth = TRUE), rownames = FALSE)
-  output$modCSeffect<-renderTable(data.frame(modelCS()$AnovaTab),align="llll")
-  output$modCS<-renderTable({data.frame(modelCS()$coefTab)},align="lllll")
+            options = list(paging = F,searching = FALSE,autoWidth = TRUE,info=FALSE), rownames = FALSE)
+ output$modCSeffect<-shiny::renderTable(data.frame(modelCS()$AnovaTab),align="lll")
+
+
+    output$modCS<-shiny::renderTable(data.frame(modelCS()$coefTab),align="llll",include.rownames = T,include.colnames = T)
   output$modCSwei<-renderPrint(modelCS()$weightCoef)
   output$outCS<-renderPrint({
     idat=modelCS()$data
@@ -584,7 +612,7 @@ shinyServer(function(input, output, session) {
       objres=modelLG()
       formatpw=modelLGpw()
       plotdata=prepDiagLG(objres)
-      
+      pvadj=gsub(" .*","",tolower(input$radiolgadj))
       out <- render('reportLG.Rmd', switch(
         input$formatLG,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
       ))
@@ -607,9 +635,10 @@ shinyServer(function(input, output, session) {
       
       ifile=fileData()$Ori
       objres=ndfKM()
-      print(objres)
+#      print(objres)
       modKM=modelKM()
       p1=plotKM(objres,shift=as.numeric(input$kmshift),lwd=as.numeric(input$kmlwd),retplot=FALSE)
+      pvadj=gsub(" .*","",tolower(input$radiokmadj))
       
       out <- render('reportKM.Rmd', switch(
         input$formatKM,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
@@ -639,6 +668,7 @@ shinyServer(function(input, output, session) {
       diagdata=prepDiagCS(csres)
       retplotcs=plotCS(objres,retplot=FALSE,
                 miny=as.numeric(input$csminy),maxy=as.numeric(input$csmaxy))
+      pvadj=gsub(" .*","",tolower(input$radiocsadj))
       #########
       out <- render('reportCS.Rmd', switch(
         input$formatCS,PDF = pdf_document(), HTML = html_document(), DOCX = word_document()
@@ -728,7 +758,7 @@ shinyServer(function(input, output, session) {
       
       par(mar=c(3.4,4,1,.1),lwd=2,lend=0,cex=input$tccex,cex.axis=input$tccex,cex.lab=input$tccex)
       cdat=dat()
-      print(colGrps())
+#      print(colGrps())
       lgdata=getLGmat(cdat,resp=input$response,lgrps=input$vars,gcols=colGrps()[as.character(input$vars)],trans=input$trans)
       h1=plotLineC(lgdata,type=input$tcfplottyp,
                    force2zero=input$showPanel2,defzero=as.numeric(input$tcdef),

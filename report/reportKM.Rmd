@@ -47,6 +47,9 @@ if(!is.null(modKM$modTab)) pander(modKM$modTab)
 ```
 
 **Hazard ratios**
+
+P-value adjustement: **`r pvadj`**
+
 ```{r table3, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
 if(!is.null(modKM$hrTab)) pander(modKM$hrTab)
 ```

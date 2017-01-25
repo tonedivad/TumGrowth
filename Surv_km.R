@@ -16,11 +16,13 @@ getOSTab<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),gcols=get
   dfm=cdat$dataM
   lmids=dfm$Id[dfm$Use & dfm$Grp%in%lgrps]
   lastMid=tapply(df$Tp,df$Id,max,na.rm=T)
-#  print(lastMid)
+ # print(lastT)
   
   andf=list()
   for(ipid in lmids){
+ #   print(ipid)
     l=which(!is.na(df[,resp]) & df$Tp<=lastT & df[,resp]<=lastM & df$Id==ipid)
+    if(length(l)==0) next
     itp=max(df$Tp[l])
     iresp=df[l[which.max(df$Tp[l])],resp]
     l2=which(!is.na(df[,resp]) & df$Tp>itp  & df$Tp<=lastT &  df$Id==ipid) ## any greater values after lastT
@@ -103,8 +105,9 @@ sumIdKM<-function(objres){
 }
 
 ###############################
-compKM<-function(objres,ref,firth=FALSE){
+compKM<-function(objres,ref,firth=FALSE,padjust="holm"){
   
+  if(padjust=='no') padjust="none"
   cdf=objres$Df
   cdf$Grp=relevel(cdf$Grp,ref)
   lnull=list(model=NULL,Df=cdf,modTab=NULL,hrTab=NULL,Typ=objres$Typ,Resp=objres$Resp,Par=objres$Par)
@@ -129,7 +132,7 @@ compKM<-function(objres,ref,firth=FALSE){
     pv=(1-pchisq(abs(mod$coefficients/sqrt(diag(mod$var)))^2,1))
     
     hrs=apply(cf,1,function(x) sprintf("%.3f [%.3f;%.3f]",x[1],x[2],x[3]))
-    hrpva=sprintf('%s',.myf(p.adjust(pv,"holm")))
+    hrpva=sprintf('%s',.myf(p.adjust(pv,padjust)))
     hrpv=sprintf('%s',.myf(pv))
   }
   ####################
@@ -146,15 +149,20 @@ compKM<-function(objres,ref,firth=FALSE){
       sprintf("%.2f  (d.f.=%d), p<%s",x[1],x[2],.myf(x[3]))),ncol=3)
     dimnames(modtab)=list("Treat",c("Likelihood ratio test","Wald test","LogRank test"))
     
-    hrs=apply(cbind(mod$coefficients,mod$ci.lower,mod$ci.upper),1,function(x) 
-      sprintf("%.3f [%.3f;%.3f]",exp(x[1]),exp(x[1]-1.96*x[2]),exp(x[1]+1.96*x[2])))
-    hrpva=sprintf('%s',.myf(p.adjust(mod$prob,"holm")))
+
+    cf=exp(cbind(mod$coefficients,confint(mod)))
+    cf[cf>10000]=Inf
+    cf[cf<1/10000]=-Inf
+    hrs=apply(cf,1,function(x) 
+#      sprintf("%.3f [%.3f;%.3f]",exp(x[1]),exp(x[1]-1.96*x[2]),exp(x[1]+1.96*x[2])))
+    sprintf("%.3f [%.3f;%.3f]",x[1],x[2],x[3]))
+hrpva=sprintf('%s',.myf(p.adjust(mod$prob,padjust)))
     hrpv=sprintf('%s',.myf(mod$prob))
   }
   ####################
   lrs=sapply(levels(cdf$Grp)[-1],function(x) 
     summary(coxph(Surv(Time,Event)~factor(Grp),cdf[cdf$Grp%in%c(ref,x),]))$sctest["pvalue"])
-  lrsa=sprintf('%s',.myf(p.adjust(lrs,"holm")))
+  lrsa=sprintf('%s',.myf(p.adjust(lrs,padjust)))
   lrs=sprintf('%s',.myf(lrs))
   hrtab=cbind(Covariate=levels(cdf$Grp)[-1],'Hazard ratio'=hrs,"Pvalue"=hrpv,"PvalueAdj"=hrpva,"LogRPval"=lrs,"LogRPvalAdj"=lrsa)
   rownames(hrtab)=NULL
@@ -177,7 +185,7 @@ plotKM<-function(obj,shift=0.1,lwd=1,maxtp=max(obj$Df$lastMid),title= "Perc. sur
     tt=data.frame(unclass(survfit(Surv(Time,Event)~1,ndf[ndf$Grp==i,]))[c("time","n.risk","n.event","n.censor")])
     names(tt)=c("x", "nrisk" , "nevent" , "ncensor")
     n0=tt$nrisk[1]
-    print(i)
+  #  print(i)
     y0=tt$nrisk/n0
     if(length(y0)==1) tt$y=1
     if(length(y0)>1){

@@ -2,8 +2,8 @@
 > **Overview**
 
 <tumcode>TumGrowth</tumcode> cross-sectional functionality focuses at a single 
-time point, *i.e.* only one measurement per animal is entering the analysis. It 
-provides a convenient way to examine treatment effects along the time axis and 
+time point, *i.e.* only one measurement per animal is considered in the analysis. It 
+provides a convenient way to examine treatment effects along the time axis and represents 
 an alternative approach to answer question at a time point of biological 
 interest. In comparison to the other modules, `cross-sectional` analysis does 
 not account for survival information or longitudinal correlation.
@@ -20,25 +20,21 @@ Data selection:
 parsing options `5`/`6`);
  * SqRt, for the square root of the raw measurement;
  * CuRt, for the cubic root of the raw measurement.
-4. select the time range. By default, the slider is set time to the whole time range 
-that covers the last measurement of each animal. To select a single time point, 
-the two buttons must overlap;
-5. choose whether the last observed measurement or the measurement with the largest value within 
-the above selected time range enters the analysis.
+4. selection of the time range covering the experimental measurements of interest. By default, the slider is set to include the last measurement of each animal. Note that the two buttons must overlap to specifically use one single time point;
+5. choose whether the *last* observed measurement or the measurement with the *largest* value within the time range should enter the analysis.
 
 Analysis settings:
 
 1. outlier detection threshold - One round of outlier detection is performed to 
-exclude automatically aberrant observations on the basis of 
-Bonferroni-corrected p-value calculated from the residuals. <excode>Default: 
+exclude automatically aberrant observations calulcated from the linear model residuals. <excode>Default: 
 p<0.1</excode> is a not so stringent and reasonable cut-off. Exclusion of data points following these objective criteria must be mentioned in the description of the data set, usually in the Materials and Methods of scientific papers.
 (ADD explicit removal in report);
-2. check whether treatment-based weighting of the linear model must be assessed.
+2. check whether experimental group-based weighting of the linear model must be assessed. In the simple case of a two treament group question, this is equivalent to the Welch version of the t test.
 
 Visualisation settings:
 
-1. back transform the data with the response has transformed for analysis;
-2. set the minimum and maximum scale for the y-axis.
+1. set the scale range for the y-axis;
+2. Size/point size controls the axes labelling and point sizes of the boxplots.
 
 > **Output and interpretation**
 

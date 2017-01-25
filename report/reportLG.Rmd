@@ -50,6 +50,9 @@ pander(objres$AnovaTab)
 ```
 
 **Selected pairwise comparisons**
+
+P-value adjustement: **`r pvadj`**
+
 ```{r table3, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
 pander(formatpw)
 ```

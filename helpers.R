@@ -22,7 +22,7 @@ library(doBy)
 library(pander)
 library(markdown)
 library(mgcv)
-
+library(colourpicker)
 
 ##########################################################################
 ## Formatting p-values

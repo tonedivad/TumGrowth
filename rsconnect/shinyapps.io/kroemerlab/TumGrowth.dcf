@@ -1,9 +1,10 @@
 name: TumGrowth
+title:
 account: kroemerlab
 server: shinyapps.io
 appId: 83111
-bundleId: 485481
+bundleId: 687197
 url: https://kroemerlab.shinyapps.io/TumGrowth/
-when: 1466523982.24623
+when: 1485087061.74963
 asMultiple: FALSE
 asStatic: FALSE
