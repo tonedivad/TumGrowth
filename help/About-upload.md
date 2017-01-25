@@ -84,7 +84,7 @@ day</excode>
 5. Exclude any other zeros: should be zeros considered NA;
 6. For log-transformation, zeros (if any left) are imputed by the minimum value 
 divided by 2;
-7. This applies is **Surv**is not specified in the original file. By default, 
+7. This applies is **Surv** is not specified in the original file. By default, 
 animals are considered dead on their last recorded day. Option `7` overwrites 
 this by censoring (*i.e. alive*) animals if there is a valid measurement at the 
 **latest** day of the experiment. For more subtile or complex situations, it is 
@@ -105,10 +105,10 @@ Test datasets:
 
 1. **Toy**: simple dataset explaining the basic file structure and different 
 parsing options;
-2. **KO**: data published in Kolb (2008) to illustrate T/C ratios;
+2. **KOLB2008**: data published in Kolb (2008) to illustrate T/C ratios;
 3. **Longitudinal test**:  data published in Vetizou (Science, 2015), slightly amended for 
 illustrative purposes;
-4. **Survival test**: data published in Vetizou (Science, 2015), slightly amended for 
+4. **OSurvival test**: data published in Vetizou (Science, 2015), slightly amended for 
 illustrative purposes;
 5. **Cross-sectional test**: data published in Pietrocola (Cancer Cell, 2016), slightly amended for 
 illustrative purposes;

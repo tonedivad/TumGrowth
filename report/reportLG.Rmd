@@ -7,7 +7,7 @@ output:
   pdf_document:
     highlight: zenburn
     toc: yes
-date: '`r paste("Compiled on ", format(Sys.time(), "%a %b %d %X %Y"))`'
+date: '`r paste("Generated on ", format(Sys.time(), "%a %b %d %X %Y"))`'
 ---
 
 Overview

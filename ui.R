@@ -73,11 +73,11 @@ shinyUI(
                        radioButtons("dataInput", NULL, list("Load sample data"=1,"Upload file"=2)),
                        conditionalPanel(condition="input.dataInput=='1'",
                                         radioButtons("sampleData", "Example data", 
-                                                     list('Toy dataset'='Toy',
-                                                          'Kolb2008'='KOLB2008',
-                                                          'Longitudinal test'='Test1',
-                                                          'Kaplan-Meier test'='Test2',
-                                                          'Cross-sectional test'='TestCRM'))
+                                                     list('Toy dataset'='data/Toy.tsv',
+                                                          'Kolb2008'='data/KOLB2008.tsv',
+                                                          'Longitudinal test'='data/TestLong.tsv',
+                                                          'Survival test (OS)'='data/TestOS.tsv',
+                                                          'Cross-sectional test'='data/TestCS.tsv'))
                        ),
                        conditionalPanel(condition="input.dataInput=='2'",
                                         h5('Tab separated format (see help)'),
