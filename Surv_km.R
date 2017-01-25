@@ -42,13 +42,13 @@ getOSTab<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),gcols=get
   l=which(ndf$lastMid==ndf$Time & ndf$Surv)
   if(length(l)>0) ndf$Event[l]=FALSE
   ########
-  params=paste("censoring on response=",lastM," and time=",lastT,sep="")
+  params=paste0("censoring on response=",lastM," and time=",lastT)
   return(list(Df=ndf,Typ="OS",Resp=resp,Par=params))
 }
 
 ###########################
 
-getTFSTab<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),gcols=getCols(cdat$dataM$Grp),firstM=0){
+getTFSTab<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),gcols=getCols(cdat$dataM$Grp),firstM=0,lastT=max(cdat$data$Tp,na.rm=T)){
   
   df=cdat$data
   dfm=cdat$dataM
@@ -57,7 +57,7 @@ getTFSTab<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),gcols=ge
   lastMid=tapply(df$Tp,df$Id,max,na.rm=T)
   andf=list()
   for(ipid in lmids){
-      l=which(!is.na(df[,resp]) & df$Id==ipid)
+      l=which(!is.na(df[,resp]) & df$Id==ipid & df$Tp<=lastT)
       if(all(df[l,resp]<=firstM)){
         andf[[ipid]]=data.frame(Id=ipid,Time=max(df$Tp[l]),Resp=df[max(l),resp],Event=FALSE,stringsAsFactors=F)
         next
@@ -78,7 +78,7 @@ getTFSTab<-function(cdat,resp=cdat$Resp[1],lgrps=levels(cdat$dataM$Grp),gcols=ge
   ndf$color=gcols[as.character(ndf$Grp)]
   ndf$lastMid=lastMid[ndf$Id]
   ndf$SurvLast=dfm[ndf$Id,]$Surv
-  params=paste("detection limit ",firstM,sep="")
+  params=paste0("detection limit ",firstM," and censoring on time=",lastT)
   return(list(Df=ndf,Typ="TFS",Resp=resp,Par=params))
 }
 
@@ -172,12 +172,14 @@ hrpva=sprintf('%s',.myf(p.adjust(mod$prob,padjust)))
 }
 
 ##########################################
-plotKM<-function(obj,shift=0.1,lwd=1,maxtp=max(obj$Df$lastMid),title= "Perc. surviving",retplot=T){
+plotKM<-function(obj,shift=0.1,lwd=1,maxtp=max(obj$Df$Time),title= "Perc. surviving",retplot=T){
+  
+#  print(obj)
   
   if(is.null(obj)) return(list(list(plot=NULL,m=NULL,limtp=NULL,title=title)))
   ndf=obj$Df
   gcols=tapply(ndf$color,ndf$Grp,unique)
-  limtp=pretty(c(0,maxtp*1.1))
+  limtp=pretty(c(0,maxtp))
   
   shift=as.vector(scale((1:nlevels(ndf$Grp))*shift[1],scale=F))
   names(shift)=levels(ndf$Grp)

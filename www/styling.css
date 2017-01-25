@@ -51,23 +51,23 @@ ul.nav li.active a {
 
 
 
-.js-irs-0 .irs-bar-edge, .js-irs-1 .irs-bar-edge, .js-irs-2 .irs-bar-edge, .js-irs-3 .irs-bar-edge {
+.js-irs-0 .irs-bar-edge, .js-irs-1 .irs-bar-edge, .js-irs-2 .irs-bar-edge, .js-irs-3 .irs-bar-edge, .js-irs-4 .irs-bar-edge {
 border-color: #9d894a;
 }
 
-.js-irs-0 .irs-bar, .js-irs-1 .irs-bar, .js-irs-2 .irs-bar, .js-irs-3 .irs-bar {
+.js-irs-0 .irs-bar, .js-irs-1 .irs-bar, .js-irs-2 .irs-bar, .js-irs-3 .irs-bar, .js-irs-4 .irs-bar {
 border-top-color: #9d894a;
 border-bottom-color: #9d894a;
 } 
 
-
-.js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar,
-.js-irs-0 .irs-to, .js-irs-0 .irs-from, 
+.js-irs-0 .irs-single, .js-irs-0 .irs-bar-edge, .js-irs-0 .irs-bar, .js-irs-0 .irs-to, .js-irs-0 .irs-from, 
 .js-irs-1 .irs-single, .js-irs-1 .irs-bar-edge, .js-irs-1 .irs-bar,
 .js-irs-3 .irs-single, .js-irs-3 .irs-bar-edge, .js-irs-3 .irs-bar {
 background: #c60f13;
 }
-.js-irs-2 .irs-single, .js-irs-2 .irs-bar-edge, .js-irs-2 .irs-bar {
+
+.js-irs-2 .irs-single, .js-irs-2 .irs-bar-edge, .js-irs-2 .irs-bar,
+.js-irs-4 .irs-single, .js-irs-4 .irs-bar-edge, .js-irs-4 .irs-bar {
 background: #012f73;
 }
 

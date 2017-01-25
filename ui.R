@@ -77,6 +77,7 @@ shinyUI(
                                                           'Kolb2008'='data/KOLB2008.tsv',
                                                           'Longitudinal test'='data/TestLong.tsv',
                                                           'Survival test (OS)'='data/TestOS.tsv',
+                                                          'Survival test (TFS)'='data/TestTFS.tsv',
                                                           'Cross-sectional test'='data/TestCS.tsv'))
                        ),
                        conditionalPanel(condition="input.dataInput=='2'",
@@ -125,7 +126,7 @@ shinyUI(
                        div(align = "center", h4("Image export"),
                            textInput3(inputId="tcwidth", label="Width", value = 5),
                            textInput3(inputId="tcheight", label="Height", value = 4),
-                           textInput3(inputId="tccex", label="Cex", value = 1),
+                           textInput3(inputId="tccex", label="Point size", value = 1),
                  #      div(align = "center",
                  br(),
                            downloadButton("downloadTCsvg", "SVG"),downloadButton("downloadTCpng", "PNG"))
@@ -199,7 +200,8 @@ shinyUI(
                                         h5("Censoring response and time"),
                                         uiOutput("slidekmui"),uiOutput("sliderkmtui")),  
                        conditionalPanel(condition="input.survTyp=='2'",
-                                        h5("Tumour detection level"),uiOutput("slidekmui2")),
+                                        h5("Censoring on tumour detection level and time"),
+                                        uiOutput("slidekmui2"),uiOutput("sliderkmtui2")),
                        br(),
                        div(align = "center", h4("Visualisation"),
                        textInput3(inputId="kmshift", label="Shifting factor", value = 0.1), 

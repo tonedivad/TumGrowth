@@ -76,6 +76,9 @@ shinyServer(function(input, output, session) {
   mgrps <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);levels(cdat$dataM$Grp)})
   l2Excl <- reactive({cdat=dat();if(!is.list(cdat)) return(NULL);cdat$Excl})
   censvalt<-reactive({cdat=dat();if(!is.list(cdat)) return(NULL);sort(unique(cdat$data$Tp))})
+  
+  ## add censoring on time for TFS
+  
   censvalrespos<-reactive({
     if(is.null(input$responsekm)) return(NULL)
     cdat=dat();if(!is.list(cdat)) return(NULL)
@@ -91,8 +94,9 @@ shinyServer(function(input, output, session) {
     cdat=dat();if(!is.list(cdat)) return(NULL)
     if(!input$responsekm %in%cdat$Resp) return(NULL)
     vraw=na.omit(cdat$data[,input$responsekm])
-    vraw=round(c(quantile(vraw,.95),0),input$ndigits)
+    vraw=round(c(quantile(vraw,.95),min(vraw)),as.numeric(input$ndigits))
     vraw=pretty(vraw,100)
+    print(vraw)
     unique(round(vraw,as.numeric(input$ndigits)))
   })
   
@@ -239,9 +243,20 @@ shinyServer(function(input, output, session) {
   # TFS
   output$slidekmui2<-renderUI({
     valr=censvalresptfs()
+  #  print(valr)
     if(is.null(valr)) return(NULL)
     sliderInput(inputId="slidekm2",label=NULL,
                 min=min(valr),max=max(valr),value=min(valr),step =diff(valr)[1])
+  })
+  
+  output$sliderkmtui2<-renderUI({
+    valt=censvalt()
+    if(is.null(valt)) return(NULL)
+    args<- list(inputId="sliderkmt2", label=NULL, ticks=TRUE, value=length(valt)-1,
+                min=1,max=length(valt),step=1)
+    htmlslider1  <- do.call('sliderInput', args)
+    htmlslider1$children[[2]]$attribs[['data-values']] <- paste(valt, collapse=',')
+    htmlslider1
   })
   
   # OS
@@ -257,9 +272,9 @@ shinyServer(function(input, output, session) {
     if(is.null(valt)) return(NULL)
     args<- list(inputId="sliderkmt", label=NULL, ticks=TRUE, value=length(valt)-1,
                 min=1,max=length(valt),step=1)
-    htmlslider1  <- do.call('sliderInput', args)
-    htmlslider1$children[[2]]$attribs[['data-values']] <- paste(valt, collapse=',')
-    htmlslider1
+    htmlslider  <- do.call('sliderInput', args)
+    htmlslider$children[[2]]$attribs[['data-values']] <- paste(valt, collapse=',')
+    htmlslider
   })
 
     ####### cross sectional
@@ -364,12 +379,14 @@ shinyServer(function(input, output, session) {
     
     cdat<-dat()
     ltps=sort(unique(cdat$data$Tp))
+#    print(input$survTyp)
+#    print(input$slidekm)
     if(input$survTyp==1) 
       return(getOSTab(cdat,input$responsekm,input$varskm, gcols=colGrps()[levels(cdat$dataM$Grp)],
                       lastT=ltps[input$sliderkmt+1],lastM=input$slidekm))
     if(input$survTyp==2) 
       return(getTFSTab(cdat,input$responsekm,input$varskm,gcols=colGrps()[levels(cdat$dataM$Grp)],
-                       firstM=input$slidekm2))
+                       lastT=ltps[input$sliderkmt2+1],firstM=input$slidekm2))
   })
   
   modelKM<-reactive({
