@@ -206,7 +206,7 @@ compCS<-function(objres,bfco=0.1,checkvar=TRUE){
   ctm=contrMat(table(idf$Grp),type="Tukey")
   ctm[,1]=0
   ctres=glht(modfin,linfct=ctm)
-  jtab=data.frame(cbind(confint(ctres)$confint[,1:3,drop=F],summary(ctres)$test$pvalues))
+  jtab=data.frame(cbind(confint(ctres)$confint[,1:3,drop=F],summary(ctres,test = adjusted('none'))$test$pvalues))
   jtab=cbind(do.call("rbind",strsplit(rownames(ctm)," - ")),jtab,stringsAsFactors=F)
   names(jtab)=c("Grp1","Grp2","Contrast","Lower","Upper","Pvalue" )
   rownames(jtab)=NULL
